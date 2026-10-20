@@ -1,6 +1,6 @@
 CALL Clean.bat
 
-Powershell -ExecutionPolicy Bypass -File Release.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Release.ps1"
 
 C:\app\Annex\SubTools\Dev\RevisionCodeGen.exe * out
 
