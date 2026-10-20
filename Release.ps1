@@ -5,7 +5,8 @@ Builds a self-contained Windows x64 release and creates out/CAERO.zip.
 .DESCRIPTION
 Run with: powershell -NoProfile -ExecutionPolicy Bypass -File .\Release.ps1
 Requires the .NET SDK and access to NuGet packages.
-The archive contains the application, runtime, and game assets at its root.
+The archive contains only CAERO/ at its root, with build output under CAERO/bin/.
+The contents of doc/ are copied directly into CAERO/.
 An existing archive is replaced only after publishing and compression succeed.
 #>
 [CmdletBinding()]
@@ -15,6 +16,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $solution = Join-Path $PSScriptRoot 'src\CAERO.sln'
+$documents = Join-Path $PSScriptRoot 'doc'
 $outputDirectory = Join-Path $PSScriptRoot 'out'
 $archive = Join-Path $outputDirectory 'CAERO.zip'
 
@@ -23,10 +25,14 @@ try {
     if (-not (Test-Path -LiteralPath $solution -PathType Leaf)) {
         throw "Solution not found: $solution"
     }
+    if (-not (Test-Path -LiteralPath $documents -PathType Container)) {
+        throw "Documentation directory not found: $documents"
+    }
 
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     $workDirectory = Join-Path $outputDirectory ('.release-' + [guid]::NewGuid().ToString('N'))
-    $publishDirectory = Join-Path $workDirectory 'publish'
+    $packageDirectory = Join-Path $workDirectory 'CAERO'
+    $publishDirectory = Join-Path $packageDirectory 'bin'
     $temporaryArchive = Join-Path $workDirectory 'CAERO.zip'
 
     try {
@@ -43,12 +49,16 @@ try {
             throw 'The published CAERO.exe was not found.'
         }
 
+        Get-ChildItem -LiteralPath $documents -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $packageDirectory -Recurse -Force
+        }
+
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::CreateFromDirectory(
-            $publishDirectory,
+            $packageDirectory,
             $temporaryArchive,
             [System.IO.Compression.CompressionLevel]::Optimal,
-            $false
+            $true
         )
         Move-Item -LiteralPath $temporaryArchive -Destination $archive -Force
         Write-Host "Created: $archive"
