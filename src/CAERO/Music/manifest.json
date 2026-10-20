@@ -1,0 +1,24 @@
+[
+  {
+    "name": "day",
+    "title": "Drifting Corridors",
+    "seconds": 300,
+    "rate": 44100,
+    "channels": 2,
+    "bitrate_kbps": 192,
+    "peak": 0.47999998927116394,
+    "rms": 0.09053485095500946,
+    "sha256": "4e33a6fc31cd651c9e25da2c10fe6eb94f669993cafad109a50f98ea1dbf6fbc"
+  },
+  {
+    "name": "night",
+    "title": "The Unlit Courtyard",
+    "seconds": 300,
+    "rate": 44100,
+    "channels": 2,
+    "bitrate_kbps": 192,
+    "peak": 0.47999998927116394,
+    "rms": 0.09122933447360992,
+    "sha256": "aac8615cd67a525b7a2eef213e46bebd7d1a210ecd3c66b1b7aba14587111ce3"
+  }
+]
