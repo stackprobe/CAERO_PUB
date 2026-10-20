@@ -27,6 +27,9 @@ internal sealed partial class Sector : IDisposable
     public List<WalkingRoute> Routes { get; } = [];
     internal Geometry Stone { get; } = new();
     internal Geometry Land { get; } = new();
+    // Keep the sea stair's final tread after GPU upload so a late prime bridge
+    // can subtract its shared junction faces without rebuilding the island.
+    internal Geometry BridgeJunctionSurface { get; } = new();
     internal int TerrainVertexCount { get; private set; }
     private readonly Xor128 random;
     private readonly int worldSeed;
@@ -78,6 +81,7 @@ internal sealed partial class Sector : IDisposable
         // Keep vertices and collision buckets island-local, even at huge addresses.
         s.Stone.Transform(s.Rotate, Vector3.Zero);
         s.Land.Transform(s.Rotate, Vector3.Zero);
+        s.BridgeJunctionSurface.Transform(s.Rotate, Vector3.Zero);
         s.Stone.AddCollisionTo(s.Collision); s.Land.AddCollisionTo(s.Collision);
         s.People = Residents.Create(s, seed);
         return s;
@@ -86,7 +90,7 @@ internal sealed partial class Sector : IDisposable
     private void Deck(float x0, float x1, float z0, float z1, float y, float thickness = .7f) =>
         Box(new((x0 + x1) / 2, y - thickness / 2, (z0 + z1) / 2), new(x1 - x0, thickness, z1 - z0), floor);
     private void Route(string name, params Vector3[] points) => Routes.Add(new(name, points.Select(Transform).ToArray()));
-    private void Stair(Vector3 from, Vector3 to, float width)
+    private void Stair(Vector3 from, Vector3 to, float width, Geometry? junction = null)
     {
         int count = (int)MathF.Ceiling((to.Y - from.Y) / .301f);
         Vector3 delta = (to - from) / count;
@@ -94,7 +98,10 @@ internal sealed partial class Sector : IDisposable
         {
             var p = from + delta * (i + .5f); float y = from.Y + delta.Y * (i + 1);
             bool alongZ = Math.Abs(delta.Z) > Math.Abs(delta.X);
-            Box(new(p.X, y - .5f, p.Z), alongZ ? new(width, 1, Math.Abs(delta.Z)) : new(Math.Abs(delta.X), 1, width), pale);
+            Vector3 center = new(p.X, y - .5f, p.Z);
+            Vector3 size = alongZ ? new(width, 1, Math.Abs(delta.Z)) : new(Math.Abs(delta.X), 1, width);
+            Box(center, size, pale);
+            if (i == count - 1) junction?.Box(center, size, pale);
         }
     }
     private void Lamp(Vector3 p)
@@ -276,7 +283,7 @@ internal sealed partial class Sector : IDisposable
     private void BuildSeaStair()
     {
         Deck(-28, -22, 86, 92, -20);
-        Stair(new(-25, -20, 86), new(-25, 0, 38), 6);
+        Stair(new(-25, -20, 86), new(-25, 0, 38), 6, BridgeJunctionSurface);
         Route("sea arrival", new(-25, -20, 89), new(-25, -20, 86.7f), new(-25, 0, 37.3f), new(-25, 0, 35));
         Lamp(new(-29, 0, 34));
     }
@@ -313,5 +320,5 @@ internal sealed partial class Sector : IDisposable
             DetailedTriangles = geometry.VertexCount / 3 });
     }
     public void ReleaseGeometry() { Stone.Clear(); Land.Clear(); }
-    public void Dispose() { DisposeWayfinding(); foreach (var c in Chunks) c.Dispose(); Chunks.Clear(); ReleaseGeometry(); }
+    public void Dispose() { DisposeWayfinding(); foreach (var c in Chunks) c.Dispose(); Chunks.Clear(); ReleaseGeometry(); BridgeJunctionSurface.Clear(); }
 }

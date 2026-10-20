@@ -19,6 +19,8 @@ internal sealed class World : IDisposable
     public const float WaterLevel = -18.75f, SeaFloor = -64;
     public const int DefaultSeed = 1701, CellSize = 192, LoadRadius = 2, KeepRadius = 3;
     private readonly Dictionary<(long X, long Z), Sector> sectors = [];
+    private readonly Dictionary<((long X, long Z) From, (long X, long Z) To), DiagonalBridge> diagonalBridges = [];
+    internal IEnumerable<DiagonalBridge> DiagonalBridges => diagonalBridges.Values;
     private readonly bool upload;
     private Task<Sector>? pending;
     private (long X, long Z) pendingKey;
@@ -38,7 +40,8 @@ internal sealed class World : IDisposable
     public SeaPredator Predator { get; } = new();
     public int LoadedCount => sectors.Count;
     public bool Generating => pending != null;
-    public IEnumerable<SceneChunk> Chunks => sectors.Values.SelectMany(s => s.Chunks);
+    public IEnumerable<SceneChunk> Chunks => sectors.Values.SelectMany(s => s.Chunks)
+        .Concat(diagonalBridges.Values.Select(b => b.Chunk).OfType<SceneChunk>());
     public IEnumerable<NightLight> Lights => sectors.Values.SelectMany(s => s.Lights);
     public IEnumerable<Resident> People => sectors.Values.SelectMany(s => s.People);
     public IEnumerable<Sector> Sectors => sectors.Values;
@@ -74,6 +77,7 @@ internal sealed class World : IDisposable
         OriginX = x; OriginZ = z;
         Evict((x, z));
         foreach (var sector in sectors.Values) sector.SetOrigin(x, z);
+        foreach (var bridge in diagonalBridges.Values) bridge.SetOrigin(x, z);
         player.Position -= delta;
         Predator.Shift(-delta);
         OriginShiftCount++;
@@ -86,6 +90,7 @@ internal sealed class World : IDisposable
         OriginX = address.IslandX; OriginZ = address.IslandZ;
         Evict((OriginX, OriginZ));
         foreach (var sector in sectors.Values) sector.SetOrigin(OriginX, OriginZ);
+        foreach (var bridge in diagonalBridges.Values) bridge.SetOrigin(OriginX, OriginZ);
         player.Position = address.Local;
         EnsureAround(address.Local, radius);
         Predator.Reset(this, player.Position, safetySeconds);
@@ -113,6 +118,7 @@ internal sealed class World : IDisposable
         UpdateNumberSigns();
         var center = GlobalCell(position);
         Evict(center);
+        UpdateDiagonalBridges();
         if (pending is { IsCompleted: true })
         {
             var ready = pending.GetAwaiter().GetResult(); pending = null;
@@ -161,12 +167,34 @@ internal sealed class World : IDisposable
         bool removed = false;
         foreach (var key in sectors.Keys.Where(k => !Within(k, center, KeepRadius)).ToArray())
         { sectors[key].Dispose(); sectors.Remove(key); removed = true; }
+        foreach (var key in diagonalBridges.Keys.Where(k => !sectors.ContainsKey(k.From) || !sectors.ContainsKey(k.To)).ToArray())
+        { diagonalBridges[key].Dispose(); diagonalBridges.Remove(key); }
         if (removed)
             for (int i = numberSigns.Count; i > 0; i--)
             {
                 var sector = numberSigns.Dequeue();
                 if (!sector.WayfindingDisposed && !sector.NumberIsPrime.HasValue) numberSigns.Enqueue(sector);
             }
+    }
+    private void UpdateDiagonalBridges()
+    {
+        foreach (var sector in sectors.Values)
+        {
+            if (sector.NumberIsPrime != true || sector.X == long.MaxValue) continue;
+            for (int dz = -1; dz <= 1; dz += 2)
+            {
+                Int128 z = (Int128)sector.Z + dz;
+                if (z < long.MinValue || z > long.MaxValue) continue;
+                var from = (sector.X, sector.Z);
+                var to = (sector.X + 1, (long)z);
+                if (diagonalBridges.ContainsKey((from, to)) ||
+                    !sectors.TryGetValue(to, out var neighbor) || neighbor.NumberIsPrime != true) continue;
+                var bridge = new DiagonalBridge(sector, neighbor, upload);
+                bridge.SetOrigin(OriginX, OriginZ);
+                diagonalBridges.Add((from, to), bridge);
+                if (upload) MeshUploadCount++;
+            }
+        }
     }
     private static bool Within((long X, long Z) a, (long X, long Z) b, int radius) =>
         Int128.Abs((Int128)a.X - b.X) <= radius && Int128.Abs((Int128)a.Z - b.Z) <= radius;
@@ -198,6 +226,7 @@ internal sealed class World : IDisposable
     {
         float floor = maximum >= SeaFloor ? SeaFloor : float.NegativeInfinity;
         foreach (var s in Nearby(x, z)) floor = Math.Max(floor, s.Collision.FloorAt(x, z, maximum));
+        foreach (var b in diagonalBridges.Values) floor = Math.Max(floor, b.Collision.FloorAt(x, z, maximum));
         return floor;
     }
     public float SupportBelow(float x, float z, float maximum)
@@ -212,12 +241,15 @@ internal sealed class World : IDisposable
     {
         float ceiling = float.PositiveInfinity;
         foreach (var s in Nearby(eye.X, eye.Z)) ceiling = Math.Min(ceiling, s.Collision.CeilingAt(eye.X, eye.Z, eye.Y));
+        foreach (var b in diagonalBridges.Values) ceiling = Math.Min(ceiling, b.Collision.CeilingAt(eye.X, eye.Z, eye.Y));
         return ceiling;
     }
-    public bool Blocked(Vector3 p) => Nearby(p.X, p.Z).Any(s => s.Collision.Blocked(p));
+    public bool Blocked(Vector3 p) => Nearby(p.X, p.Z).Any(s => s.Collision.Blocked(p))
+        || diagonalBridges.Values.Any(b => b.Collision.Blocked(p));
     internal bool SphereBlocked(Vector3 p, float radius, bool includeSeabed = true)
     {
         if (includeSeabed && p.Y - radius < SeaFloor) return true;
+        if (diagonalBridges.Values.Any(b => b.Collision.SphereBlocked(p, radius))) return true;
         var lo = Cell(p - new Vector3(radius)); var hi = Cell(p + new Vector3(radius));
         for (long z = lo.Z; z <= hi.Z; z++)
             for (long x = lo.X; x <= hi.X; x++)
@@ -229,6 +261,10 @@ internal sealed class World : IDisposable
         if (disposed) return;
         disposed = true;
         try { pending?.GetAwaiter().GetResult().Dispose(); }
-        finally { foreach (var s in sectors.Values) s.Dispose(); sectors.Clear(); numberSigns.Clear(); }
+        finally
+        {
+            foreach (var b in diagonalBridges.Values) b.Dispose(); diagonalBridges.Clear();
+            foreach (var s in sectors.Values) s.Dispose(); sectors.Clear(); numberSigns.Clear();
+        }
     }
 }

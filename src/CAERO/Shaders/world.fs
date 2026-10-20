@@ -95,13 +95,18 @@ void main() {
             if(abs(tag-251.0)<.5) baseTint=vec3(.97,.965,.94);
             if(abs(tag-252.0)<.5) baseTint=vec3(.78,.045,.065);
         }
+        if(tag>250.5 && tag<253.5) {
+            float faded=dot(baseTint,vec3(.299,.587,.114));
+            baseTint=mix(baseTint,vec3(faded)*vec3(1.04,1.0,.90),.22)*.90;
+        }
         lit=pow(baseTint,vec3(2.0))*.84;
         vec3 material=materialPosition+materialOffset;
         float weather=texture(surfaceDetail,material.xz/37.0).g;
         lit*=.78+.30*weather;
         float damp=(1.0-smoothstep(waterLevel,waterLevel+14.0,p.y))*(.25+.25*weather);
         lit=mix(lit,lit*vec3(.55,.72,.59),damp);
-        bool inlaid=tag>250.5 && tag<253.5;
+        bool wornPanel=abs(tag-250.0)<.5;
+        bool inlaid=(tag>250.5 && tag<253.5) || wornPanel;
         bool rock=tag<165.0, foliage=tag>=165.0 && tag<200.0;
         bool carved=tag>=200.0 && tag<229.0, paving=tag>=229.0 && tag<245.0;
         bool concrete=tag>=245.0 && tag<254.0 && !inlaid;
@@ -109,6 +114,18 @@ void main() {
         vec4 detail=texture(surfaceDetail,q/(foliage?.65:(rock?4.0:2.4)));
         float grain=foliage?detail.b:(rock?detail.g:detail.r);
         lit*=1.0+(grain-.5)*(inlaid?.12:(foliage?.30:(rock?.65:.75)));
+        if(inlaid) {
+            // Static mineral staining and worn paint, shared by background,
+            // border and letter. Keep compass/sign wear gentler for readability.
+            float ageing=wornPanel?1.0:.70;
+            float dirt=texture(surfaceDetail,q/1.7).g;
+            float scuff=texture(surfaceDetail,q/.42).r;
+            float stain=smoothstep(.39,.66,dirt);
+            float wear=1.0-smoothstep(.20,.48,scuff);
+            lit*=mix(1.0,.76+.40*grain,ageing);
+            lit=mix(lit,lit*vec3(.48,.44,.34),stain*.55*ageing);
+            lit=mix(lit,vec3(.23,.22,.18),wear*.46*ageing);
+        }
         if(concrete) {
             vec2 panel=abs(fract(q/vec2(6.0,3.0))-.5)*vec2(6.0,3.0);
             float edge=max(smoothstep(2.975,3.0,panel.x),smoothstep(1.475,1.5,panel.y));

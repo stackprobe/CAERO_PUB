@@ -16,6 +16,7 @@ internal static class ProceduralChecks
         SurfaceChecks.Run();
         DayNightChecks.Run();
         WayfindingChecks.Run();
+        DiagonalBridgeChecks.Run();
         ResidentChecks.Run();
         PredatorChecks.Run();
         CheckPropSupport();

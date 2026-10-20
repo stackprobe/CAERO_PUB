@@ -19,6 +19,7 @@ bool capturePredator = args.Contains("--capture-predator");
 bool captureWater = args.Contains("--capture-water");
 bool capture = args.Contains("--capture") || captureWayfinding || captureIdentity || captureChaos || captureTowerFaces || captureFrameTower || captureCycle || capturePeople || capturePredator || captureWater, selfTest = args.Contains("--self-test");
 bool streamTest = args.Contains("--stream-test");
+if (args.Contains("--diagonal-bridge-test")) { DiagonalBridgeChecks.Run(); return; }
 if (args.Contains("--building-test")) { BuildingChecks.Run(); return; }
 if (args.Contains("--wayfinding-test")) { WayfindingChecks.Run(); return; }
 if (args.Contains("--dialogue-test")) { DialogueChecks.Run(); return; }

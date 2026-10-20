@@ -185,7 +185,7 @@ internal sealed partial class Sector
         }
     }
 
-    private static void Stamp(int[,] pixels, string text, int x, int y, int shade, int scale = 1)
+    internal static void Stamp(int[,] pixels, string text, int x, int y, int shade, int scale = 1)
     {
         foreach (char c in text)
         {
