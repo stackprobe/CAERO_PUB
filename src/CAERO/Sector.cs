@@ -68,7 +68,7 @@ internal sealed partial class Sector : IDisposable
         using var layout = new Sector(seed, 0, 0);
         return new("THE FIRST ISLAND", layout.Transform(new(0, Explorer.EyeHeight, 6)), layout.Transform(new(0, 8, -28)));
     }
-    public static Sector Generate(int seed, long x, long z)
+    public static Sector Generate(int seed, long x, long z, bool includeSpecial = true)
     {
         var s = new Sector(seed, x, z);
         s.BuildIsland(); s.TerrainVertexCount = s.Land.VertexCount;
@@ -77,20 +77,26 @@ internal sealed partial class Sector : IDisposable
         s.BuildIslandIdentity();
         s.PlaceLamps();
         s.BuildWayfinding();
+        s.BuildWarpZone();
         s.BuildSculpture();
         // Keep vertices and collision buckets island-local, even at huge addresses.
         s.Stone.Transform(s.Rotate, Vector3.Zero);
+        s.SeaStairGeometry.Transform(s.Rotate, Vector3.Zero);
         s.Land.Transform(s.Rotate, Vector3.Zero);
         s.BridgeJunctionSurface.Transform(s.Rotate, Vector3.Zero);
         s.Stone.AddCollisionTo(s.Collision); s.Land.AddCollisionTo(s.Collision);
+        s.SeaStairGeometry.AddCollisionTo(s.seaStairCollision);
+        s.Collision.Additional = s.seaStairCollision;
+        s.BuildResidentAreas();
         s.People = Residents.Create(s, seed);
+        if (includeSpecial) s.BuildSpecialContent();
         return s;
     }
     private void Box(Vector3 center, Vector3 size, Color? color = null) => Stone.Box(center, size, color ?? stone);
-    private void Deck(float x0, float x1, float z0, float z1, float y, float thickness = .7f) =>
-        Box(new((x0 + x1) / 2, y - thickness / 2, (z0 + z1) / 2), new(x1 - x0, thickness, z1 - z0), floor);
+    private void Deck(float x0, float x1, float z0, float z1, float y, float thickness = .7f, Geometry? target = null) =>
+        (target ?? Stone).Box(new((x0 + x1) / 2, y - thickness / 2, (z0 + z1) / 2), new(x1 - x0, thickness, z1 - z0), floor);
     private void Route(string name, params Vector3[] points) => Routes.Add(new(name, points.Select(Transform).ToArray()));
-    private void Stair(Vector3 from, Vector3 to, float width, Geometry? junction = null)
+    private void Stair(Vector3 from, Vector3 to, float width, Geometry? junction = null, Geometry? target = null)
     {
         int count = (int)MathF.Ceiling((to.Y - from.Y) / .301f);
         Vector3 delta = (to - from) / count;
@@ -100,7 +106,7 @@ internal sealed partial class Sector : IDisposable
             bool alongZ = Math.Abs(delta.Z) > Math.Abs(delta.X);
             Vector3 center = new(p.X, y - .5f, p.Z);
             Vector3 size = alongZ ? new(width, 1, Math.Abs(delta.Z)) : new(Math.Abs(delta.X), 1, width);
-            Box(center, size, pale);
+            (target ?? Stone).Box(center, size, pale);
             if (i == count - 1) junction?.Box(center, size, pale);
         }
     }
@@ -113,6 +119,7 @@ internal sealed partial class Sector : IDisposable
         // its own pedestal (or another lamp) as the floor holding it up.
         var support = new WalkableScene();
         Stone.AddCollisionTo(support); Land.AddCollisionTo(support);
+        SeaStairGeometry.AddCollisionTo(support);
         foreach (var p in lampRequests)
         {
             if (!PlacementSupport.HasFlatSupport(support, p, new(.4f, .4f)))
@@ -282,14 +289,20 @@ internal sealed partial class Sector : IDisposable
     }
     private void BuildSeaStair()
     {
-        Deck(-28, -22, 86, 92, -20);
-        Stair(new(-25, -20, 86), new(-25, 0, 38), 6, BridgeJunctionSurface);
+        Deck(-28, -22, 86, 92, -20, target: SeaStairGeometry);
+        Stair(new(-25, -20, 86), new(-25, 0, 38), 6, BridgeJunctionSurface, SeaStairGeometry);
         Route("sea arrival", new(-25, -20, 89), new(-25, -20, 86.7f), new(-25, 0, 37.3f), new(-25, 0, 35));
         Lamp(new(-29, 0, 34));
     }
     public void Upload()
     {
         Add(Stone, SurfaceSet.Architecture); Add(Land, SurfaceSet.Landscape);
+        if (HasSeaStair)
+        {
+            Add(SeaStairGeometry, SurfaceSet.Architecture);
+            seaStairChunk = Chunks[^1];
+        }
+        foreach (var prop in SpecialObjects) prop.Upload();
         ReleaseGeometry();
     }
     internal void SetOrigin(long originX, long originZ)
@@ -304,6 +317,7 @@ internal sealed partial class Sector : IDisposable
             for (int i = 0; i < route.Points.Length; i++) route.Points[i] += delta;
         foreach (var port in SkyPorts) port.Offset = next;
         foreach (var person in People) person.Shift(delta);
+        foreach (var prop in SpecialObjects) prop.SetOrigin(next);
         SculptureFoot += delta; SculptureMin += delta; SculptureMax += delta;
         CompassCenter += delta; NumberPlateCenter += delta;
     }
@@ -317,8 +331,9 @@ internal sealed partial class Sector : IDisposable
             Surface = surface, WallFinish = surface == SurfaceSet.Architecture ? WallFinish : Vector3.Zero,
             WallStrength = IdentityStrength,
             PrimeNumber = NumberIsPrime == true,
+            DestinationPrimes = DestinationPrimes,
             DetailedTriangles = geometry.VertexCount / 3 });
     }
-    public void ReleaseGeometry() { Stone.Clear(); Land.Clear(); }
-    public void Dispose() { DisposeWayfinding(); foreach (var c in Chunks) c.Dispose(); Chunks.Clear(); ReleaseGeometry(); BridgeJunctionSurface.Clear(); }
+    public void ReleaseGeometry() { Stone.Clear(); Land.Clear(); SeaStairGeometry.Clear(); foreach (var prop in SpecialObjects) { prop.Geometry.Clear(); prop.PedestalGeometry.Clear(); } }
+    public void Dispose() { DisposeWayfinding(); foreach (var c in Chunks) c.Dispose(); foreach (var prop in SpecialObjects) prop.Dispose(); Chunks.Clear(); ReleaseGeometry(); BridgeJunctionSurface.Clear(); }
 }

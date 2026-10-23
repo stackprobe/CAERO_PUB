@@ -7,6 +7,8 @@ uniform vec2 resolution;
 uniform sampler2D sceneDepth;
 uniform vec3 rayHeight;
 uniform float waterPass,eyeHeight,waterLevel,nearClip,farClip;
+uniform float warpStrength,warpTime;
+uniform float boundaryStrength;
 out vec4 finalColor;
 vec4 sceneSample(vec2 uv) {
     vec4 encoded=texture(texture0,uv);
@@ -15,6 +17,17 @@ vec4 sceneSample(vec2 uv) {
 vec3 sceneColor(vec2 uv) { return sceneSample(uv).rgb; }
 void main() {
     vec2 uv=fragTexCoord;
+    float corruption=clamp(warpStrength,0.0,1.0);
+    float tear=0.0;
+    if(corruption>0.0) {
+        // Moving scan bands and spatial tearing, without full-screen flashes.
+        float band=floor(uv.y*32.0);
+        float tick=floor(warpTime*11.0);
+        float key=fract(sin(dot(vec2(band,tick),vec2(127.1,311.7)))*43758.5453);
+        tear=(key-.5)*step(.58,key)*.22*corruption*corruption;
+        uv.x=fract(uv.x+tear+sin(uv.y*92.0+warpTime*7.0)*.004*corruption);
+        uv.y=clamp(uv.y+sin(warpTime*2.3)*.008*corruption,.001,.999);
+    }
     vec2 pixel=1.0/resolution;
     vec4 centre=sceneSample(uv);
     vec3 c=centre.rgb;
@@ -75,6 +88,26 @@ void main() {
             bloom+=max(tap-vec3(.78),vec3(0));
         }
         c+=bloom*.03;
+    }
+    if(corruption>0.0) {
+        float separation=(.003+abs(tear)*.25)*corruption;
+        c.r=mix(c.r,sceneColor(clamp(uv+vec2(separation,0),vec2(.001),vec2(.999))).r,corruption*.9);
+        c.b=mix(c.b,sceneColor(clamp(uv-vec2(separation,0),vec2(.001),vec2(.999))).b,corruption*.9);
+        float grain=fract(sin(dot(floor(gl_FragCoord.xy*.35)+floor(warpTime*24.0),vec2(12.9898,78.233)))*43758.5453);
+        float scan=.5+.5*sin(fragTexCoord.y*resolution.y*.55+warpTime*13.0);
+        vec3 interference=mix(vec3(.015,.08,.11),vec3(.16,.035,.12),grain);
+        c=c*(1.0-corruption*.43)+interference*corruption*(.6+scan*.4);
+    }
+    if(boundaryStrength>0.0) {
+        // Lost image bands and blocks remain visible even against an empty, foggy sky.
+        float tick=floor(warpTime*8.0);
+        float band=floor(fragTexCoord.y*19.0);
+        float bandKey=fract(sin(dot(vec2(band,tick),vec2(91.7,173.3)))*43758.5453);
+        float loss=smoothstep(.15,.9,boundaryStrength);
+        c*=1.0-step(.79,bandKey)*loss*.78;
+        vec2 cell=floor(fragTexCoord*vec2(28.0,19.0));
+        float block=fract(sin(dot(cell+vec2(tick,tick*.37),vec2(127.1,311.7)))*43758.5453);
+        c=mix(c,vec3(.015,.028,.035),step(.965,block)*loss*.88);
     }
     c*=1.08;
     // Filmic rolloff, then display transfer; lighting above is in linear space.

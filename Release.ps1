@@ -49,6 +49,25 @@ try {
             throw 'The published CAERO.exe was not found.'
         }
 
+        # Encrypt all source Content assets, including their filenames, into one package.
+        # The packer verifies a full round trip and tamper rejection before writing it.
+        & $dotnet run --project (Join-Path $PSScriptRoot 'tools\ContentPacker\ContentPacker.csproj') `
+            --configuration Release -- (Join-Path $PSScriptRoot 'src\CAERO\Content') `
+            (Join-Path $publishDirectory 'Content.dat')
+        if ($LASTEXITCODE -ne 0) {
+            throw "Content packaging failed with exit code $LASTEXITCODE."
+        }
+        # Remove only the published loose assets, never the editable source directory.
+        $looseContent = [System.IO.Path]::GetFullPath((Join-Path $publishDirectory 'Content'))
+        $resolvedPublish = [System.IO.Path]::GetFullPath($publishDirectory).TrimEnd('\', '/')
+        if ([System.IO.Path]::GetDirectoryName($looseContent) -ne $resolvedPublish -or
+            [System.IO.Path]::GetFileName($looseContent) -ne 'Content') {
+            throw "Refusing to remove Content outside the publish directory: $looseContent"
+        }
+        if (Test-Path -LiteralPath $looseContent) {
+            Remove-Item -LiteralPath $looseContent -Recurse -Force
+        }
+
         Get-ChildItem -LiteralPath $documents -Force | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $packageDirectory -Recurse -Force
         }

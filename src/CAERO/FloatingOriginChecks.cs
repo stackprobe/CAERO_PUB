@@ -71,7 +71,7 @@ internal static class FloatingOriginChecks
         {
             long beforeX = world.OriginX;
             long tick = Stopwatch.GetTimestamp();
-            player.Advance(.01f, world, i % 2 == 0 ? Vector3.UnitX : -Vector3.UnitX, false, false, false, false, true);
+            player.Advance(.01f, world, i % 2 == 0 ? Vector3.UnitX : -Vector3.UnitX, false, false, false, true);
             timings.Add(Stopwatch.GetElapsedTime(tick).TotalMilliseconds);
             Check(world.OriginX == beforeX + (i % 2 == 0 ? 1 : -1) && World.Cell(player.Position) == (0, 0), "every ordinary crossing rebases immediately in both directions");
             Check(world.AddressOf(resident.Position) == person && world.AddressOf(resident.Anchor) == anchor, "resident pose and patrol survive rebasing");
@@ -101,7 +101,7 @@ internal static class FloatingOriginChecks
                 if (swimming) start += Math.Abs(direction.X) > 0 ? new Vector3(0, 0, 90) : new Vector3(90, 0, 0);
                 var player = new Explorer();
                 world.Teleport(player, new(0, 0, start));
-                player.Advance(.01f, world, direction, false, false, false, false, true);
+                player.Advance(.02f, world, direction, false, false, false, true);
                 var address = world.AddressOf(player.Position);
                 Check(address.IslandX == (long)direction.X && address.IslandZ == (long)direction.Z && World.Cell(player.Position) == (0, 0),
                     "walking/swimming cross both signed axes");
@@ -110,7 +110,7 @@ internal static class FloatingOriginChecks
             }
         var jumper = new Explorer();
         world.Teleport(jumper, new(0, 0, new(95.9f, Explorer.EyeHeight, 0)));
-        jumper.Advance(.01f, world, Vector3.UnitX, true, true, false, false, true);
+        jumper.Advance(.01f, world, Vector3.UnitX, true, true, false, true);
         Check(world.OriginX == 1 && jumper.Jumped && jumper.Position.Y > Explorer.EyeHeight, "jump crosses the seam without losing its impulse or event");
         float peak = jumper.Position.Y;
         for (int i = 0; i < 200; i++)
@@ -125,7 +125,7 @@ internal static class FloatingOriginChecks
         var player = new Explorer { Position = world.EntryPosition, Flying = true };
         world.Update(new(192, 50, 0));
         Check(world.Generating, "worker is in flight before a boundary crossing");
-        player.Advance(.01f, world, Vector3.UnitX, false, false, false, false, true);
+        player.Advance(.01f, world, Vector3.UnitX, false, false, false, true);
         Wait(world, player.Position);
         foreach (var s in world.Sectors)
             Check(s.Offset == WorldPosition.Offset(s.X, s.Z, world.OriginX, world.OriginZ) && s.Offset.Length() < 900,

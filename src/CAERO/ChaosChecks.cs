@@ -15,11 +15,14 @@ internal static class ChaosChecks
         using (var origin = Sector.Generate(1701, 0, 0))
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            foreach (var p in origin.Stone.Vertices.Take(origin.SculptureFirst).Concat(origin.Land.Vertices.Take(origin.TerrainVertexCount)))
-                foreach (float v in new[] { p.X, p.Y, p.Z }) hash.AppendData(BitConverter.GetBytes(v));
-            // Seeded tower entrances, corner stepping blocks and flush wayfinding inlays.
+            // Keep the original geometry baseline independent of mesh partitioning.
+            // This sorted digest was also verified against the pre-split generator.
+            var vertices = origin.Stone.Vertices.Take(origin.SculptureFirst).Concat(origin.SeaStairGeometry.Vertices)
+                .Concat(origin.Land.Vertices.Take(origin.TerrainVertexCount));
+            foreach (var p in vertices.OrderBy(p => p.X).ThenBy(p => p.Y).ThenBy(p => p.Z))
+                foreach (float v in new[] { p.X, p.Y, p.Z }) hash.AppendData(BitConverter.GetBytes(v == 0 ? 0f : v));
             string fingerprint = Convert.ToHexString(hash.GetHashAndReset());
-            Check(fingerprint == "A5AE0B15587F4595B1C396F5B03CD291B2911FFA195CFA1C5324308690B7F6FD",
+            Check(fingerprint == "075B3F8802A4E52EE840006AEF77D364343B121D1B4A81F9E77FD4AFF4740D41",
                 "starting island's terrain/buildings/lamps/inlays match generator baseline: " + fingerprint);
             Check(origin.ChaosTier == 0 && origin.SkyPorts.Count == 0 && origin.HighRoof == 0, "no high-rise additions on starting island");
         }

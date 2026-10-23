@@ -24,7 +24,12 @@ uniform float characterPass;
 uniform float fishPass, fishEye;
 uniform vec3 wallFinish; // island wall style, block scale, mineral tint
 uniform float wallStrength;
+uniform float smoothMaterial;
+uniform float exitRelicPass,exitPulse;
+uniform float inscriptionPass;
+uniform vec4 exitLight;
 uniform float primeNumber;
+uniform vec4 destinationPrimes;
 uniform vec4 colDiffuse;
 uniform int lightCount;
 uniform vec4 lamps[24]; // xyz position, w radius
@@ -61,6 +66,7 @@ void main() {
         return;
     }
     vec3 lit;
+    float inscriptionInk=0.0;
     if(seabedPass != 0) {
         lit=vec3(.001,.0015,.002);
     } else if(tint.a*255.0<120.0) {
@@ -91,6 +97,13 @@ void main() {
         // Shared, world-space materials allow new islands without baking a global atlas.
         float tag=tint.a*255.0;
         vec3 baseTint=tint.rgb;
+        if(inscriptionPass>.5 && abs(tag-254.0)<.5) {
+            inscriptionInk=texture(texture0,materialUV).r;
+            baseTint=mix(vec3(52.0,58.0,60.0)/255.0,tint.rgb,inscriptionInk);
+        }
+        bool destinationGlyph=tag>245.5 && tag<249.5;
+        if(destinationGlyph && destinationPrimes[int(floor(tag-246.0+.5))]>.5)
+            baseTint=vec3(.57,.18,.26);
         if(primeNumber>.5) {
             if(abs(tag-251.0)<.5) baseTint=vec3(.97,.965,.94);
             if(abs(tag-252.0)<.5) baseTint=vec3(.78,.045,.065);
@@ -105,7 +118,7 @@ void main() {
         lit*=.78+.30*weather;
         float damp=(1.0-smoothstep(waterLevel,waterLevel+14.0,p.y))*(.25+.25*weather);
         lit=mix(lit,lit*vec3(.55,.72,.59),damp);
-        bool wornPanel=abs(tag-250.0)<.5;
+        bool wornPanel=abs(tag-250.0)<.5 || destinationGlyph;
         bool inlaid=(tag>250.5 && tag<253.5) || wornPanel;
         bool rock=tag<165.0, foliage=tag>=165.0 && tag<200.0;
         bool carved=tag>=200.0 && tag<229.0, paving=tag>=229.0 && tag<245.0;
@@ -191,6 +204,13 @@ void main() {
             vec3 finish=pattern*mineral*mix(vec3(.86,.92,.82),vec3(1.1,.94,.87),wallFinish.z);
             lit*=mix(vec3(1),finish,wallStrength);
         }
+        // Potion glass/liquid use a smooth finish rather than stone grain.
+        if(smoothMaterial>.5) {
+            vec3 viewDirection=normalize(eye-p);
+            float rim=pow(1.0-abs(dot(n,viewDirection)),3.0);
+            float glint=pow(max(dot(reflect(normalize(vec3(-.4,-.8,-.3)),n),viewDirection),0.0),28.0);
+            lit=pow(baseTint,vec3(2.0))*(.84+.16*rim)+vec3(.35)*glint;
+        }
         // Broad skylight changes smoothly with time; no cast or contact shadows.
         vec3 ambient=mix(vec3(.48,.50,.52),vec3(.66,.69,.72),n.y*.5+.5);
         lit*=ambient;
@@ -209,6 +229,19 @@ void main() {
             lit+=surface*vec3(1.0,.65,.30)*fade*fade*diffuse*1.8*lampIntensity[i];
         }
     }
+    if(seabedPass==0 && exitLight.w>0.0) {
+        vec3 delta=exitLight.xyz-p;
+        float d=length(delta);
+        float fade=max(1.0-d/exitLight.w,0.0);
+        float diffuse=.25+.75*max(dot(n,delta/max(d,.001)),0.0);
+        lit+=surface*vec3(.64,.88,.82)*fade*fade*diffuse*2.0*exitPulse;
+    }
+    if(exitRelicPass>.5 && abs(tint.a*255.0-254.0)<.5)
+        lit+=vec3(.58,.82,.76)*exitPulse;
+    // Only the carved script emits; the dark stone keeps its contrast with pale architecture.
+    // Fog and depth testing still apply to the complete inscription.
+    if(inscriptionPass>.5)
+        lit+=tint.rgb*inscriptionInk*.12;
     if(min(eye.y,p.y) < waterLevel) {
         float eyeDepth=max(waterLevel-eye.y,0.0);
         float targetDepth=max(waterLevel-p.y,0.0);

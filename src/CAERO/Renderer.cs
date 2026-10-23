@@ -6,7 +6,7 @@ namespace Caero;
 internal sealed unsafe class Renderer : IDisposable
 {
     private readonly Shader worldShader, postShader, skyShader, blurShader;
-    private readonly Texture2D waterNoise, surfaceDetail;
+    private readonly Texture2D waterNoise, surfaceDetail, inscriptionScript;
     private readonly Model seabed, ocean;
     private readonly SceneVisibility visibility = new();
     private readonly ResidentRenderer people = new();
@@ -59,6 +59,7 @@ internal sealed unsafe class Renderer : IDisposable
         resolutionLocation = Raylib.GetShaderLocation(postShader, "resolution");
         waterNoise = SurfaceTextures.WaterNoise();
         surfaceDetail = SurfaceTextures.SurfaceDetail();
+        inscriptionScript = InscriptionSurface.CreateTexture();
         var water = new Geometry();
         water.Quad(new(-600, 0, 600), new(600, 0, 600), new(600, 0, -600), new(-600, 0, -600), new(61, 110, 118, 100));
         ocean = water.UploadTiled();
@@ -113,6 +114,7 @@ internal sealed unsafe class Renderer : IDisposable
     }
     private void Bind(Model model)
     {
+        model.Materials[0].Maps[(int)MaterialMapIndex.Albedo].Texture = inscriptionScript;
         model.Materials[0].Maps[(int)MaterialMapIndex.Roughness].Texture = waterNoise;
         model.Materials[0].Maps[(int)MaterialMapIndex.Normal].Texture = surfaceDetail;
     }
@@ -120,6 +122,8 @@ internal sealed unsafe class Renderer : IDisposable
         => Raylib.SetShaderValue(shader, Raylib.GetShaderLocation(shader, name), &value, ShaderUniformDataType.Vec3);
     private static void Set(Shader shader, string name, float value)
         => Raylib.SetShaderValue(shader, Raylib.GetShaderLocation(shader, name), &value, ShaderUniformDataType.Float);
+    private static void Set(Shader shader, string name, Vector4 value)
+        => Raylib.SetShaderValue(shader, Raylib.GetShaderLocation(shader, name), &value, ShaderUniformDataType.Vec4);
     private static void Draw(Model model, Shader shader, Vector3 offset)
     {
         model.Materials[0].Shader = shader;
@@ -137,7 +141,8 @@ internal sealed unsafe class Renderer : IDisposable
         }
         return cell < 0 ? -result : result;
     }
-    public void Render(World world, Camera3D camera, float? artTime = null, double? cycleTime = null)
+    public void Render(World world, Camera3D camera, float? artTime = null, double? cycleTime = null,
+        float? warpStrength = null, float? warpTime = null, float boundaryStrength = 0)
     {
         int screenWidth = Raylib.GetScreenWidth(), screenHeight = Raylib.GetScreenHeight();
         var (width, height) = WindowHost.RenderSize;
@@ -157,6 +162,9 @@ internal sealed unsafe class Renderer : IDisposable
         }
         var sky = cycleTime.HasValue ? DayNightCycle.At(cycleTime.Value) : cycle.State;
         UpdateLights(world, eye, sky.Seconds);
+        var exit = world.Sectors.SelectMany(s => s.SpecialObjects).FirstOrDefault(o => o.Definition.Kind == SpecialKind.Exit);
+        Set(worldShader, "exitLight", exit == null ? Vector4.Zero : new Vector4(exit.Foot + Vector3.UnitY * 1.45f, 9));
+        Set(worldShader, "exitPulse", ExitRelic.Brightness(time));
         float drawDistance = SceneVisibility.DrawDistance + (NightDrawDistance - SceneVisibility.DrawDistance) * sky.Night;
         Set(worldShader, "drawDistance", drawDistance);
         foreach (var shader in new[] { worldShader, skyShader })
@@ -208,7 +216,11 @@ internal sealed unsafe class Renderer : IDisposable
         }
         foreach (var chunk in visibleChunks)
         {
+            Set(worldShader, "smoothMaterial", chunk.SmoothMaterial ? 1 : 0);
+            Set(worldShader, "exitRelicPass", chunk.ExitRelic ? 1 : 0);
+            Set(worldShader, "inscriptionPass", chunk.Inscription ? 1 : 0);
             Set(worldShader, "primeNumber", chunk.PrimeNumber ? 1 : 0);
+            Set(worldShader, "destinationPrimes", chunk.DestinationPrimes);
             Set(worldShader, "wallFinish", chunk.WallFinish);
             Set(worldShader, "wallStrength", chunk.WallStrength);
             Bind(chunk.Detailed);
@@ -217,6 +229,9 @@ internal sealed unsafe class Renderer : IDisposable
             DrawnTriangles += chunk.DetailedTriangles;
         }
         Set(worldShader, "wallFinish", Vector3.Zero);
+        Set(worldShader, "smoothMaterial", 0);
+        Set(worldShader, "exitRelicPass", 0);
+        Set(worldShader, "inscriptionPass", 0);
         // A camera-centered ocean covers the streamed area without owning physics or sectors.
         Set(worldShader, "characterPass", 1);
         foreach (var person in world.People)
@@ -264,6 +279,9 @@ internal sealed unsafe class Renderer : IDisposable
             Raylib.ClearBackground(Color.Black);
         }
         Raylib.BeginShaderMode(postShader);
+        Set(postShader, "warpStrength", warpStrength ?? world.WarpStrength);
+        Set(postShader, "warpTime", warpTime ?? world.WarpTime);
+        Set(postShader, "boundaryStrength", boundaryStrength);
         Set(postShader, "waterPass", waterVisible ? 1 : 0);
         if (waterVisible)
         {
@@ -317,6 +335,7 @@ internal sealed unsafe class Renderer : IDisposable
         if (presentation.Id != 0) Raylib.UnloadRenderTexture(presentation);
         Raylib.UnloadTexture(waterNoise);
         Raylib.UnloadTexture(surfaceDetail);
+        Raylib.UnloadTexture(inscriptionScript);
         Raylib.UnloadShader(worldShader); Raylib.UnloadShader(postShader);
         Raylib.UnloadShader(skyShader);
         Raylib.UnloadShader(blurShader);

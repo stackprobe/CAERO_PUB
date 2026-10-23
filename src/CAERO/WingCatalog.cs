@@ -112,6 +112,9 @@ internal static class WingCatalog
                     w * .12f, h * (.2f + i * .08f), d * .9f, true);
                 break;
         }
+        // Later roof slabs own their finish where they meet a solid branch.
+        // Resolve within the module before placement, keeping all floor heights.
+        g.RemoveCoplanarOverlaps();
         return g;
     }
 }

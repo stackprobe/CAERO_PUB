@@ -4,8 +4,10 @@ using Caero;
 
 bool captureChaos = args.Contains("--capture-chaos");
 bool captureWayfinding = args.Contains("--capture-wayfinding");
-bool captureIdentity = args.Contains("--capture-identity") || captureWayfinding;
-long identityDistance = long.Parse(args.FirstOrDefault(a => a.StartsWith("--identity-distance="))?.Split('=')[1] ?? (captureWayfinding ? "0" : "4"));
+bool captureDestinations = args.Contains("--capture-destinations");
+bool captureWarp = args.Contains("--capture-warp");
+bool captureIdentity = args.Contains("--capture-identity") || captureWayfinding || captureWarp;
+long identityDistance = long.Parse(args.FirstOrDefault(a => a.StartsWith("--identity-distance="))?.Split('=')[1] ?? (captureWarp ? "15" : captureWayfinding || captureDestinations ? "0" : "4"));
 string[]? identityCell = args.FirstOrDefault(a => a.StartsWith("--identity-cell="))?[16..].Split(',');
 long identityX = identityCell == null ? identityDistance : long.Parse(identityCell[0]);
 long identityZ = identityCell == null ? 0 : long.Parse(identityCell[1]);
@@ -17,14 +19,34 @@ bool captureNight = args.Contains("--night");
 bool capturePeople = args.Contains("--capture-people");
 bool capturePredator = args.Contains("--capture-predator");
 bool captureWater = args.Contains("--capture-water");
-bool capture = args.Contains("--capture") || captureWayfinding || captureIdentity || captureChaos || captureTowerFaces || captureFrameTower || captureCycle || capturePeople || capturePredator || captureWater, selfTest = args.Contains("--self-test");
+bool capture = args.Contains("--capture") || captureDestinations || captureWayfinding || captureIdentity || captureChaos || captureTowerFaces || captureFrameTower || captureCycle || capturePeople || capturePredator || captureWater, selfTest = args.Contains("--self-test");
 bool streamTest = args.Contains("--stream-test");
+#if DEBUG
+if (args.Contains("--debug-island-travel-test")) { DebugIslandTravelChecks.Run(); return; }
+#endif
+if (args.Contains("--flight-test")) { FlightChecks.Run(); return; }
+if (args.Contains("--altitude-test")) { AltitudeChecks.Run(); return; }
+if (args.Contains("--capture-altitude")) { AltitudeChecks.Capture(); return; }
 if (args.Contains("--diagonal-bridge-test")) { DiagonalBridgeChecks.Run(); return; }
+if (args.Contains("--sea-stair-test")) { DiagonalBridgeChecks.SeaStairs(); return; }
+if (args.Contains("--capture-sea-stair-conflict")) { DiagonalBridgeChecks.CaptureSeaStair(); return; }
 if (args.Contains("--building-test")) { BuildingChecks.Run(); return; }
 if (args.Contains("--wayfinding-test")) { WayfindingChecks.Run(); return; }
 if (args.Contains("--dialogue-test")) { DialogueChecks.Run(); return; }
+if (args.Contains("--choice-input-test")) { ConversationInputChecks.Run(); return; }
 if (args.Contains("--resident-test")) { ResidentChecks.Run(); return; }
 if (args.Contains("--layout-test")) { ChaosChecks.Layouts(); return; }
+if (args.Contains("--wing-test")) { VariationChecks.WingSurfaces(); return; }
+if (args.Contains("--warp-test")) { WarpChecks.Run(); return; }
+if (args.Contains("--special-test")) { SpecialChecks.Run(); return; }
+if (args.Contains("--ending-test")) { EndingChecks.Run(); return; }
+if (args.Contains("--capture-ending")) { EndingChecks.Capture(); return; }
+if (args.Contains("--menu-test")) { MenuChecks.Run(); return; }
+if (args.Contains("--capture-menus")) { MenuChecks.Capture(); return; }
+if (args.FirstOrDefault(a => a.StartsWith("--capture-special=")) is { } specialCapture)
+{ SpecialRenderChecks.Run(int.Parse(specialCapture.Split('=')[1])); return; }
+if (args.Contains("--warp-render-test") || args.Contains("--capture-warp-transition"))
+{ WarpRenderChecks.Run(args.Contains("--capture-warp-transition")); return; }
 if (args.Contains("--predator-test")) { PredatorChecks.Run(); return; }
 if (args.Contains("--origin-test")) { FloatingOriginChecks.Run(); return; }
 if (args.Contains("--audio-test") || args.Contains("--audio-smoke-test"))
@@ -40,25 +62,32 @@ if (streamTest || args.Contains("--movement-test") || args.Contains("--surface-t
     ProceduralChecks.Run();
     return;
 }
-SavedView? saved = capture || selfTest ? null : SaveStore.Load();
+if (!capture && !selfTest)
+{ GameApplication.Run(seedArgument == null ? World.DefaultSeed : int.Parse(seedArgument[7..]), !args.Contains("--no-audio")); return; }
+SavedView? saved = null;
 int seed = seedArgument == null ? saved?.Seed ?? World.DefaultSeed : int.Parse(seedArgument[7..]);
 if (saved?.Seed != seed) saved = null;
 WindowHost.Open();
 try
 {
     if (selfTest) ProceduralChecks.Run();
-    Vector3? start = captureIdentity || capturePredator ? Vector3.Zero : captureFrameTower ? new(192, 0, -6144) : captureTowerFaces ? new(1920, 0, 3072) : captureChaos ? new(2304, 0, 0) : saved == null ? null : new(saved.X, saved.Y, saved.Z);
-    using var world = new World(seed: seed, start: start, originX: captureIdentity ? identityX : saved?.IslandX ?? 0,
-        originZ: captureIdentity ? identityZ : saved?.IslandZ ?? 0);
+    Vector3? start = captureIdentity || captureDestinations || capturePredator ? Vector3.Zero : captureFrameTower ? new(192, 0, -6144) : captureTowerFaces ? new(1920, 0, 3072) : captureChaos ? new(2304, 0, 0) : saved == null ? null : new(saved.X, saved.Y, saved.Z);
+    using var world = new World(seed: seed, start: start, originX: captureIdentity || captureDestinations ? identityX : saved?.IslandX ?? 0,
+        originZ: captureIdentity || captureDestinations ? identityZ : saved?.IslandZ ?? 0);
     using var renderer = new Renderer(world, capture || selfTest ? 12345 : null);
     using var audio = new AudioDirector(!capture && !selfTest && !args.Contains("--no-audio"));
     world.OriginShifted += audio.ShiftOrigin; world.ViewTeleported += audio.ResetListener;
     using var conversationUi = new ConversationUi();
     var conversation = new Conversation();
+    var ending = new EndingSequence();
     if (captureNight) renderer.StartAtNight();
     var explorer = new Explorer(); explorer.GoTo(new("ENTRY", world.EntryPosition, world.EntryPosition + world.Views[0].Target - world.Views[0].Position));
-    if (saved != null) explorer.Restore(saved);
-    if (captureIdentity || captureChaos || captureTowerFaces || captureFrameTower) explorer.GoTo(new("CHAOS REGION", world.EntryPosition, world.EntryPosition - Vector3.UnitZ));
+    if (saved != null)
+    {
+        world.Progress.Restore(saved.Progress); explorer.Restore(saved);
+        if (!world.Progress.CanFly) explorer.Flying = false;
+    }
+    if (captureIdentity || captureDestinations || captureChaos || captureTowerFaces || captureFrameTower) explorer.GoTo(new("CHAOS REGION", world.EntryPosition, world.EntryPosition - Vector3.UnitZ));
     if (capturePredator)
     {
         world.Predator.Stage(new(96, -49, 96), Vector3.UnitZ, PredatorState.Patrol);
@@ -84,10 +113,53 @@ try
         var point = p.LookPoint;
         return new(p.Name, point + forward * 2.8f + new Vector3(1.2f, .45f, 0), point - new Vector3(0, .25f, 0));
     }
-    Viewpoint[] captures = captureWayfinding ? [
+    IEnumerable<Viewpoint> SeatedViews(Resident p)
+    {
+        foreach (float angle in new[] { 0f, 1.2f, -1.2f })
+        {
+            Vector3 direction = new(MathF.Sin(p.Yaw + angle), 0, MathF.Cos(p.Yaw + angle));
+            Vector3 target = p.Position + Vector3.UnitY * (.45f * p.Scale);
+            yield return new("SEATED ROBE", target + direction * (2 * p.Scale) + Vector3.UnitY * (.45f * p.Scale), target);
+        }
+    }
+    IEnumerable<Viewpoint> DestinationViews()
+    {
+        for (int i = 0; i < 10000 && world.Sectors.Any(s => s.NumberWorkPending); i++) world.Update(explorer.Position);
+        foreach (var panel in origin.DestinationPanels)
+        {
+            Vector3 center = origin.Transform(panel.Center);
+            Vector3 forward = origin.Transform(panel.Forward) - origin.Offset;
+            yield return new("DESTINATION " + panel.Number, center - forward * 4.5f + Vector3.UnitY * 3.2f, center);
+        }
+        foreach (var bridge in world.DiagonalBridges.Take(2))
+            foreach (var panel in bridge.DestinationPanels)
+            {
+                Vector3 center = panel.Center + bridge.Collision.Offset;
+                yield return new("DIAGONAL DESTINATION " + panel.Number,
+                    center - panel.Forward * 4.5f + Vector3.UnitY * 3.2f, center);
+            }
+    }
+    IEnumerable<Viewpoint> WarpViews()
+    {
+        yield return V("EXTERIOR STAIRS", origin.CourtStairPoint(new(15, origin.HighRoof + origin.FloatingCourtFloors * 6 + 12, -80)),
+            origin.CourtStairPoint(new(53, origin.HighRoof + origin.FloatingCourtFloors * 6, -50)));
+        Vector3 center = origin.WarpArrivalPosition;
+        yield return new("WARP FLOOR NUMBER", center + new Vector3(0, 7, 4), center);
+        yield return new("EIGHT WAY MACHINES", center + new Vector3(0, 2.5f, 2), center + new Vector3(0, 1, -7.3f));
+        if (origin.WarpTerminals.FirstOrDefault() is { } terminal)
+        {
+            var machine = new WarpTarget(origin, terminal);
+            Vector3 facing = origin.Transform(terminal.LocalFacing) - origin.Offset;
+            yield return new("EXAMINE MACHINE", machine.Point + facing * 2 + Vector3.UnitY * .6f, machine.Point);
+        }
+    }
+    Viewpoint[] captures = captureWarp ? WarpViews().ToArray() : captureDestinations ? DestinationViews().ToArray() : captureWayfinding ? new Viewpoint[] {
         new("COMPASS", origin.CompassCenter + new Vector3(0, 6, 3), origin.CompassCenter),
         new("ISLAND NUMBER", origin.NumberPlateCenter + origin.NumberPlateNormal * 5, origin.NumberPlateCenter)
-    ] : captureWater ? new[] { .05f, .001f, 0f, -.001f, -.05f, -.6f, -6f, -42f }.Select(depth =>
+    }.Concat(origin.SkyCompassCenters.SelectMany(center => new Viewpoint[] {
+        new("SKY COMPASS", center + new Vector3(0, 6, 3), center),
+        new("SKY COMPASS APPROACH", center + new Vector3(0, 1.75f, 5), center)
+    })).ToArray() : captureWater ? new[] { .05f, .001f, 0f, -.001f, -.05f, -.6f, -6f, -42f }.Select(depth =>
         new Viewpoint($"WATERLINE {depth}", new(1.7f, World.WaterLevel + depth, 108.7f),
             new(7, World.WaterLevel + depth, 125))).Append(
         new("BOTTOMLESS", new(96, -30, 100), new(96, -64, 108))).ToArray() : captureIdentity ? [
@@ -108,7 +180,9 @@ try
         new("SHALLOW BRIDGE BLUR", new(82.1f, -21.3f, 49.5f), new(82.1f, -23, 25)),
         new("DISTANT EYES", new(96, -49, 170), new(96, -49, 96)),
         new("FAR EYES", new(96, -49, 220), new(96, -49, 96))
-    ] : capturePeople ? portraits.Select(Portrait).Concat(new[] { Portrait(portraits[0]) }).ToArray() : captureFrameTower ? [
+    ] : capturePeople ? (portraits.Length == 0 ? new[] { world.Views[0] }
+        : portraits.Select(Portrait).Append(Portrait(portraits[0]))
+            .Concat(portraits.Where(p => p.Pose == ResidentPose.Sitting).SelectMany(SeatedViews)).ToArray()) : captureFrameTower ? [
         V("FRAME TOWER", new(frameTower!.X, 18, frameTower.Z + frameTower.Depth / 2 + 25), new(frameTower.X, 32, frameTower.Z)),
         V("FRAME JOINT A", new(frameTower.X - frameTower.Width / 2 - 4, 12, frameTower.Z + frameTower.Depth / 2 + 6), new(frameTower.X - frameTower.Width / 2, 12, frameTower.Z + frameTower.Depth / 2)),
         V("FRAME JOINT B", new(frameTower.X - frameTower.Width / 2 - 3.96f, 12.02f, frameTower.Z + frameTower.Depth / 2 + 6), new(frameTower.X - frameTower.Width / 2, 12, frameTower.Z + frameTower.Depth / 2)),
@@ -156,22 +230,6 @@ try
         renderer.Update(Raylib.GetFrameTime());
         if ((Raylib.IsKeyDown(KeyboardKey.LeftAlt) || Raylib.IsKeyDown(KeyboardKey.RightAlt)) && Raylib.IsKeyPressed(KeyboardKey.Enter)) WindowHost.Toggle();
         if (Raylib.IsKeyPressed(KeyboardKey.H)) help = !help;
-        if (Raylib.IsKeyPressed(KeyboardKey.N)) renderer.ToggleTimeScale();
-        if (Raylib.IsKeyPressed(KeyboardKey.M)) audio.ToggleMute();
-        if (Raylib.IsKeyPressed(KeyboardKey.F5))
-        { notice = SaveStore.Save(explorer, world) ? "VIEW + WORLD SEED SAVED" : "SAVE FAILED: " + SaveStore.LastError; noticeTime = 4; }
-        if (Raylib.IsKeyPressed(KeyboardKey.F9) && SaveStore.Load() is { } view)
-        {
-            if (view.Seed == world.Seed)
-            {
-                world.Teleport(explorer, new(view.IslandX, view.IslandZ, new(view.X, view.Y, view.Z)));
-                conversation.Close(); explorer.Restore(view); notice = "VIEW RESTORED";
-            }
-            else notice = "SAVED SEED DIFFERS - RESTART WITHOUT --seed";
-            noticeTime = 4;
-        }
-        if (Raylib.IsKeyPressed(KeyboardKey.One))
-        { conversation.Close(); world.ReturnToStart(explorer); }
         if (selfTest)
         {
             if (positionedStop != testStop)
@@ -182,7 +240,7 @@ try
                 {
                     explorer.Flying = true;
                     int uploads = world.MeshUploadCount, installed = world.InstalledSectorCount, shifted = world.OriginShiftCount;
-                    explorer.Advance(.01f, world, testStop == 3 ? Vector3.UnitX : -Vector3.UnitX, false, false, false, false, true);
+                    explorer.Advance(.01f, world, testStop == 3 ? Vector3.UnitX : -Vector3.UnitX, false, false, false, true);
                     if (world.OriginShiftCount != shifted + 1 || world.MeshUploadCount != uploads || world.InstalledSectorCount != installed)
                         throw new InvalidOperationException("GPU boundary rebase regenerated or reuploaded island meshes.");
                 }
@@ -190,25 +248,62 @@ try
             }
             if (gpuTestTimer.Elapsed.TotalSeconds > 60) throw new TimeoutException("GPU streaming test timed out.");
         }
+        world.AdvanceWarp(dt, explorer);
+        if (world.TakeWarpFailure() is { } warpError)
+        { notice = "WARP FAILED: " + warpError; noticeTime = 5; }
         world.Update(explorer.Position);
-        bool wasTalking = conversation.Speaker != null;
-        if (!capture && !selfTest && !wasTalking) explorer.Update(dt, world);
-        else if (wasTalking) explorer.ClearMotionEvents();
-        if (!capture && !selfTest && Raylib.IsWindowFocused() && world.Predator.Update(dt, world, explorer))
-        { conversation.Close(); audio.ResetListener(explorer.Position); swallowed = 2.2f; }
-        swallowed = Math.Max(0, swallowed - dt);
-        foreach (var person in world.People) person.Update(capture ? 0 : dt);
-        Resident? target = Conversation.Target(world, explorer.Position, explorer.Forward);
+        bool wasTalking = conversation.Active;
+        if (!capture && !selfTest && world.WarpInProgress)
+        {
+            if (world.WarpFalling) explorer.Advance(dt, world, Vector3.Zero, false, false, false, false);
+            else explorer.ClearMotionEvents();
+        }
+        else if (!capture && !selfTest && !wasTalking && !world.Progress.Escaped) explorer.Update(dt, world);
+        else if (wasTalking || world.Progress.Escaped) explorer.ClearMotionEvents();
+        if (!capture && !selfTest && !world.WarpInProgress && !world.Progress.Escaped && Raylib.IsWindowFocused() && world.Predator.Update(dt, world, explorer))
+        { conversation.Close(); audio.ResetListener(explorer.Position); swallowed = ConversationUi.SwallowedDuration; }
+        else swallowed = Math.Max(0, swallowed - dt);
+        foreach (var person in world.People) person.Update(capture ? 0 : dt, explorer.Position);
+        Resident? target = explorer.Flying || world.WarpInProgress ? null : Conversation.Target(world, explorer.Position, explorer.Forward);
+        WarpTarget? warpTarget = explorer.Flying || wasTalking || world.WarpInProgress ? null : WarpTravel.Target(world, explorer.Position, explorer.Forward);
+        if (warpTarget != null) target = null;
+        SpecialObject? specialTarget = explorer.Flying || wasTalking || world.WarpInProgress || world.Progress.Escaped ? null
+            : SpecialInteraction.Target(world, explorer.Position, explorer.Forward);
+        if (specialTarget != null)
+        {
+            float distance = Vector3.DistanceSquared(explorer.Position, specialTarget.ExaminePoint);
+            if ((target == null || distance < Vector3.DistanceSquared(explorer.Position, target.LookPoint))
+                && (warpTarget == null || distance < Vector3.DistanceSquared(explorer.Position, warpTarget.Point)))
+            { target = null; warpTarget = null; }
+            else specialTarget = null;
+        }
         if (conversation.Speaker is { } current && (!world.People.Contains(current) || Vector3.Distance(current.Position, explorer.Position) > 5)) conversation.Close();
-        if (!capture && !selfTest && Raylib.IsWindowFocused())
+        if (conversation.Document is { } document && (!world.Sectors.Any(s => s.SpecialObjects.Contains(document))
+            || Vector3.Distance(document.Point, explorer.Position) > 5)) conversation.Close();
+        if (!capture && !selfTest && !world.WarpInProgress && !world.Progress.Escaped && Raylib.IsWindowFocused())
         {
             if (wasTalking)
             {
                 conversation.Update(dt);
-                if (Raylib.IsKeyPressed(KeyboardKey.Escape)) conversation.Close();
-                else if (Raylib.IsKeyPressed(KeyboardKey.E) || Raylib.IsKeyPressed(KeyboardKey.Space)) conversation.Advance();
+                ConversationInput.Poll(conversation);
             }
-            else if (explorer.Captured && target != null && Raylib.IsKeyPressed(KeyboardKey.E)) conversation.Start(target);
+            else if (explorer.Captured && Raylib.IsKeyPressed(KeyboardKey.E))
+            {
+                if (specialTarget != null)
+                {
+                    void SaveInteraction()
+                    { if (!SaveStore.Save(explorer, world)) { notice = "SAVE FAILED: " + SaveStore.LastError; noticeTime = 5; } }
+                    SpecialInteraction.Examine(world, explorer, specialTarget, conversation, SaveInteraction);
+                    if (specialTarget.Definition.Kind == SpecialKind.Exit) SaveInteraction();
+                    target = null; specialTarget = null;
+                }
+                else if (warpTarget != null)
+                {
+                    if (WarpTravel.Examine(world, explorer, warpTarget, conversation)) { target = null; warpTarget = null; }
+                    else { notice = "WARP DESTINATION OUTSIDE WORLD"; noticeTime = 4; }
+                }
+                else if (target != null) conversation.Start(target);
+            }
         }
         if (!capture && !selfTest) audio.Update(Raylib.GetFrameTime(), world, explorer, renderer);
         if (capture) explorer.GoTo(captures[Math.Min(frame / 4, captures.Length - 1)]);
@@ -230,13 +325,16 @@ try
         double? renderTime = captureCycle ? cycleTimes[Math.Min(frame / 8, cycleTimes.Length - 1)]
             : capture ? (captureNight ? 450 : 150) : selfTest ? new double[] { 150, 300, 450, 600 }[testStop % 4] : null;
         Raylib.BeginDrawing(); renderer.Render(world, explorer.Camera, capture ? 12 : null, renderTime);
-        if (!capture) DrawHud(world, explorer, renderer, help && conversation.Speaker == null, noticeTime > 0 ? notice : "");
-        if (capturePeople && frame / 4 == portraits.Length)
+
+        if (capturePeople && portraits.Length > 0 && frame / 4 == portraits.Length)
         { if (conversation.Speaker == null) conversation.Start(portraits[0]); conversation.Update(10); }
         if (!capture || capturePeople) conversationUi.Draw(conversation, target);
+        if ((!capture || captureWarp) && !conversation.Active) conversationUi.DrawWarp(warpTarget);
+        if (!capture && !conversation.Active) conversationUi.DrawSpecial(specialTarget);
         if (!capture && !selfTest && (audio.Muted || !audio.Ready))
             Raylib.DrawText(audio.Ready ? "AUDIO MUTED (M)" : "AUDIO UNAVAILABLE", 26, 157, 14, new Color(195, 212, 211, 255));
         conversationUi.DrawSwallowed(swallowed);
+        if (world.Progress.Escaped) { ending.Update(dt); conversationUi.DrawEnding(ending); }
         Raylib.EndDrawing(); noticeTime -= dt;
         if (capture && frame % 4 == 3)
         {
@@ -244,7 +342,7 @@ try
             var image = Raylib.LoadImageFromScreen();
             try
             {
-                if (!Raylib.ExportImage(image, Path.Combine(directory, $"generated-{(captureWater ? "water-" : captureIdentity ? $"identity-{identityLabel}-" : capturePredator ? "predator-" : capturePeople ? "people-" : captureCycle ? "cycle-" : captureFrameTower ? "frame-tower-" : captureTowerFaces ? "tower-faces-" : captureChaos ? "chaos-" : "")}{(captureNight && !captureCycle ? "night-" : "")}{frame / 4 + 1:00}.png")))
+                if (!Raylib.ExportImage(image, Path.Combine(directory, $"generated-{(captureDestinations ? $"destinations-{identityLabel}-" : "")}{(captureWater ? "water-" : captureIdentity ? $"identity-{identityLabel}-" : capturePredator ? "predator-" : capturePeople ? "people-" : captureCycle ? "cycle-" : captureFrameTower ? "frame-tower-" : captureTowerFaces ? "tower-faces-" : captureChaos ? "chaos-" : "")}{(captureNight && !captureCycle ? "night-" : "")}{frame / 4 + 1:00}.png")))
                     throw new IOException("Cannot write capture.");
             }
             finally { Raylib.UnloadImage(image); }
@@ -281,22 +379,3 @@ catch (Exception ex)
     throw;
 }
 finally { Raylib.CloseWindow(); }
-
-static void DrawHud(World world, Explorer explorer, Renderer renderer, bool help, string notice)
-{
-    Color ink = new(237, 234, 215, 255), muted = new(195, 212, 211, 255);
-    var c = world.GlobalCell(explorer.Position);
-    Raylib.DrawRectangle(24, 24, 3, 44, new Color(230, 215, 170, 255));
-    Raylib.DrawText("C A E R O  5", 40, 24, 26, ink);
-    Raylib.DrawText("THE WANDERING CITADELS", 41, 57, 11, muted);
-    Raylib.DrawText($"SEED {world.Seed}   ISLAND {c.X}, {c.Z}   CHAOS {Sector.TierAt(c.X, c.Z)}   LOADED {world.LoadedCount}" + (world.Generating ? "   GENERATING" : ""), 26, 87, 15, muted);
-    Raylib.DrawText($"LOCAL {explorer.Position.X:F1}, {explorer.Position.Y:F1}, {explorer.Position.Z:F1}   {(explorer.Flying ? "FLYING" : explorer.Swimming ? "SWIMMING" : "WALKING")}   {Raylib.GetFPS()} FPS", 26, 109, 14, muted);
-    if (help)
-    {
-        int y = Raylib.GetScreenHeight() - 104;
-        Raylib.DrawText("WASD Move   Mouse Look   Shift Fast   Ctrl 10x   Space Jump / Rise   C Dive / Descend", 26, y, 15, ink);
-        Raylib.DrawText($"F Fly   N Time x{renderer.TimeScale} (1 / 10)   1 First Island   F5 Save   F9 Load   H Help", 26, y + 24, 15, ink);
-        Raylib.DrawText("E Talk   Esc Release Mouse   Click Capture   Alt+Enter Fullscreen   M Mute Audio", 26, y + 48, 15, muted);
-    }
-    if (notice.Length > 0) Raylib.DrawText(notice, 26, 138, 16, ink);
-}

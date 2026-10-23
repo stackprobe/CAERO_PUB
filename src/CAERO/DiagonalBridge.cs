@@ -14,6 +14,7 @@ internal sealed class DiagonalBridge : IDisposable
     internal int JunctionOverlaps { get; }
     internal int JunctionOverlapsRemoved { get; }
     internal IReadOnlyList<Vector3> EntrancePanelCenters { get; }
+    internal IReadOnlyList<DestinationPanel> DestinationPanels { get; }
 
     internal DiagonalBridge(Sector from, Sector to, bool upload)
     {
@@ -72,8 +73,12 @@ internal sealed class DiagonalBridge : IDisposable
         Vector3 entryDirection = Vector3.Normalize(Path[1] - Path[0]);
         Vector3 exitDirection = Vector3.Normalize(Path[^2] - Path[^1]);
         EntrancePanelCenters = new[] { Path[0] + entryDirection * 4, Path[^1] + exitDirection * 4 };
-        AddEntrancePanel(geometry, EntrancePanelCenters[0], entryDirection);
-        AddEntrancePanel(geometry, EntrancePanelCenters[1], exitDirection);
+        Vector3 destinationDirection = Vector3.Normalize(new Vector3(World.CellSize, 0, dz * World.CellSize));
+        DestinationPanels = new[] {
+            new DestinationPanel(to.IslandNumber, EntrancePanelCenters[0], destinationDirection, prime: to.NumberIsPrime == true),
+            new DestinationPanel(from.IslandNumber, EntrancePanelCenters[1], -destinationDirection, prime: from.NumberIsPrime == true)
+        };
+        foreach (var panel in DestinationPanels) geometry.Inlay(panel.Footprint, panel.Surface);
         JunctionOverlaps = geometry.CountCoplanarOverlaps(junction);
         geometry.AddCollisionTo(Collision);
         if (upload)
@@ -81,39 +86,6 @@ internal sealed class DiagonalBridge : IDisposable
                 LocalMin = geometry.Vertices.Aggregate(new Vector3(float.PositiveInfinity), Vector3.Min),
                 LocalMax = geometry.Vertices.Aggregate(new Vector3(float.NegativeInfinity), Vector3.Max),
                 Surface = SurfaceSet.Architecture, DetailedTriangles = geometry.VertexCount / 3 };
-    }
-
-    private static void AddEntrancePanel(Geometry deck, Vector3 center, Vector3 forward)
-    {
-        const int width = 9, height = 11;
-        const float cell = .2f;
-        int[,] pixels = new int[width, height];
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width; x++)
-                if (x == 0 || x == width - 1 || y == 0 || y == height - 1) pixels[x, y] = 1;
-        Sector.Stamp(pixels, "D", 2, 2, 2);
-        // Tag 250 adds aged paint, mineral dirt and scuffs in the world shader.
-        Color[] palette = [new(133, 79, 66, 250), new(77, 61, 52, 250), new(196, 185, 151, 250)];
-        Vector3 right = Vector3.Cross(forward, Vector3.UnitY);
-        var footprint = new Geometry();
-        var panel = new Geometry();
-        void Rect(Geometry g, int x0, int y0, int x1, int y1, Color color)
-        {
-            Vector3 P(int x, int y) => center + right * ((x - width * .5f) * cell)
-                + forward * ((height * .5f - y) * cell);
-            g.Quad(P(x0, y1), P(x1, y1), P(x1, y0), P(x0, y0), color);
-        }
-        Rect(footprint, 0, 0, width, height, palette[0]);
-        for (int y = 0; y < height; y++)
-            for (int x = 0; x < width;)
-            {
-                int start = x, shade = pixels[x++, y];
-                while (x < width && pixels[x, y] == shade) x++;
-                Rect(panel, start, y, x, y + 1, palette[shade]);
-            }
-        // Replace the floor rather than overlaying a decal, keeping y=0 and
-        // the same continuous collision surface without coplanar flickering.
-        deck.Inlay(footprint, panel);
     }
 
     internal void SetOrigin(long x, long z)

@@ -1,0 +1,1226 @@
+{
+  "version": 1,
+  "dashBonusPerItem": 3,
+  "jumpBonusPerItem": 0.12,
+  "objects": [
+    {
+      "id": "island-1-01",
+      "island": "1",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        28,
+        0,
+        24
+      ],
+      "yawDegrees": 225,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "聖なる数は数多あれど、\n等しき二つに「分」かたるるもの、ただ一つ。",
+        "その孤独なる数の地に、次なる言葉を遺す。"
+      ]
+    },
+    {
+      "id": "island-1-02",
+      "island": "1",
+      "kind": "inscription",
+      "name": "青い碑文",
+      "surface": "hallRoof",
+      "position": [
+        -22,
+        0,
+        -32
+      ],
+      "yawDegrees": 60,
+      "searchRadius": 5,
+      "color": "668AAE",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "神聖なる数の列に、\n始まりの者のみ、己を等しく二つに「分」かつ術を知れり。",
+        "されど、後に続く聖なる者たちは誰ひとりとしてその術を持たず。",
+        "その術を持たぬ、最も若き者を求めよ。\nその数の地に、旅人を待つものあり。"
+      ]
+    },
+    {
+      "id": "island-1-03",
+      "island": "1",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "towerInterior",
+      "position": [
+        18,
+        0,
+        22
+      ],
+      "yawDegrees": 55,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "始まりというものは、いつだって特別なものさ。\nけれど、最初であるだけなら、いずれ後に続くものが現れる。",
+        "面白いのは、最初でありながら、唯一でもあるということだ。",
+        "……そんな数があるらしい。\nいや、ただそれだけの話さ。"
+      ]
+    },
+    {
+      "id": "island-1-04",
+      "island": "1",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -20,
+        0,
+        -26
+      ],
+      "yawDegrees": 120,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "始まりというのは、必ずしも一つとは限らない。\n何を基準にするかで、最初に来るものも変わるんだ。",
+        "……そこの碑文はそういうことを言ってるのさ。",
+        "いや、ただそれだけの話さ……。"
+      ]
+    },
+    {
+      "id": "island-1-05",
+      "island": "1",
+      "kind": "resident",
+      "name": "島を眺める旅人",
+      "surface": "cornerPlatform",
+      "position": [36.3, 0, 36.3],
+      "yawDegrees": 45,
+      "searchRadius": 0,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "あの島を眺めているんだ。\n……。",
+        "あんたも、この世界に飛ばされてきたのかい？\n……そうか。あんたもか。",
+        "どこから来たんだ？\n……いや、すまない。思い出せないよな。",
+        "みんな、そうなんだ。\nここへ来る前のことは、何も思い出せない。",
+        "俺も、思い出そうとはしたよ。\n何を思い出せばいいのかも、わからないけどな。",
+        "ここに来て、もう何日目だろうか……。\n長くいるわけじゃないんだが、ここの一日は短いからな。",
+        "ずっと前からいる連中ほど、慣れてもいない。\n……まだ、こうして考えちまうしな。",
+        "腹も減らないし、眠くもならない。\n最初は、楽でいいと思ったよ。",
+        "けど、何もしないで立っていられるとさ。\nいつまででも、そうしてしまうんだな。",
+        "……この島は、もう探索したかい？\nまだなら、少し歩いてみるといい。",
+        "青い碑文と、赤い碑文があるだろう。\nあれには、それぞれ役目があるらしい。",
+        "青い碑文は、旅の助けになるものへ。\n赤い碑文は、旅の終わりへ導く。",
+        "……ここで会った奴に、そう教わった。\nそいつはもう、別の島へ行ったよ。",
+        "それから、島には全部、番号がある。\nこれは、覚えておいたほうがいい。",
+        "ただの目印だと思っていたんだがね。\n……どうも、とても大事なことらしい。",
+        "碑文が示しているのは、島の番号なんだ。\n言葉の意味がわかれば、行き先もわかる。",
+        "俺も、ちょっとは考えてはみたよ。\n……考えただけで、まだここにいるけどな。",
+        "帰りたいとは、思うんだ。\n帰る場所なんて、思い出せもしないのにな。",
+        "向こうに、誰か待っているんだろうか。\n……待たせたままなら、悪いことをしてるな。",
+        "けど、今すぐ帰れると言われたら。\n俺は、すぐに頷けるのかな。",
+        "ここにいれば、何も思い出さずに済む。\n……そんなふうに思う時も、あるんだよ。",
+        "あんたは、行くんだろう。\nだったら、まだ足が動くうちに行くといい。",
+        "俺は、もう少し眺めているよ。\n……あの島にも、誰かいるのかね。"
+      ]
+    },
+    {
+      "id": "island-1-06",
+      "island": "1",
+      "kind": "resident",
+      "name": "屋上に座る人",
+      "surface": "towerRoof",
+      "position": [14.2, 0, 31.8],
+      "yawDegrees": 135,
+      "searchRadius": 0,
+      "color": "AC6161",
+      "pose": "sitting",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "そこから飛び降りたって、死なないよ。\n……どうしてだろうね。痛いだけなんだ。",
+        "海に飛び込んでも、無駄さ。\n魚に食われて……やっぱり、痛いだけ。",
+        "あの魚、自分の居場所に潜ってくる奴が嫌いなんだ。\n水面を泳いでいるぶんには、何もしないよ。",
+        "知っていれば、痛い思いはせずに済む。\n……それだけのことだけど。",
+        "……。\nここは、静かでいいね。",
+        "君は、先へ行くつもりなんだね。\n……碑文の謎は、わかったかい？"
+      ],
+      "choice": {
+        "yesPages": [
+          "そう。\n……なら、いいんだ。",
+          "……がんばって。"
+        ],
+        "noPages": [
+          "……ふうん、そうなんだ。謎を解くのって楽しいよね。",
+          "君は先に答えを言われるのが嫌いなタイプに見えるね。まだ自分で考えてみたいのかな……。\n……それとも、教えてほしいかい？"
+        ],
+        "noChoice": {
+          "yesPages": [
+            "じゃあ教えてあげる。\n答えだけね。",
+            "赤は２。青は３だよ。\n……それが、碑文の示している番号。",
+            "２は隣だね。\n３も、すぐ近くだよ。",
+            "台の上に、立っている奴がいるだろう。\nあいつが、いつも眺めている島さ。",
+            "……別に、お礼はいらないよ。\n聞かれたから、答えただけだ。"
+          ],
+          "noPages": [
+            "わかった。\n……がんばって。"
+          ]
+        }
+      }
+    },
+    {
+      "id": "island-1-07",
+      "island": "1",
+      "kind": "resident",
+      "name": "うずくまる人",
+      "surface": "hallRoof",
+      "position": [9, 0, -10],
+      "yawDegrees": 180,
+      "searchRadius": 10,
+      "color": "AC6161",
+      "pose": "sitting",
+      "leanAgainstWall": true,
+      "huddled": true,
+      "minResidentDistance": 10,
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "石を集めてさ、\n並べて遊んでいたんだ。",
+        "でも、いくら頑張っても長方形に並べることができなかったんだ。",
+        "そしたら、誰かが教えてくれたんだ。\n「それは、とても神聖なことなんだよ」って。",
+        "でも僕は、石をもっと集めてきて、\n今度は綺麗な長方形に並べることができたんだ。",
+        "そしたら、その人は悲しそうにこう言ったんだ。\n「もう、神聖ではなくなったね。祝福されることもない」って。",
+        "とても大切なことなんだって、\nそう言ってた。"
+      ]
+    },
+    {
+      "id": "island-2-01",
+      "island": "2",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        14.2,
+        0,
+        31.8
+      ],
+      "yawDegrees": 135,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "はじめに、天と地を創りし者あり。\n光と闇を分かち、",
+        "海と陸を定め、\nあらゆる命を地に満たした。",
+        "やがて創造の業を終え、\nその翌日を聖なる安息の日とした。",
+        "創造の始まりより、日の数を数えよ。\nその数の地に、次なる言葉を遺す。"
+      ]
+    },
+    {
+      "id": "island-2-02",
+      "island": "2",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "towerInterior",
+      "position": [
+        26,
+        0,
+        24
+      ],
+      "yawDegrees": 235,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "昔、ある小説を読んだことがあるんだ。\n題名は……何だったかな。みんな、あるアルファベットになってしまう、そんな題名だった気がする。",
+        "その小説に、孤独な数字の話が出てきたんだよ。\n……ああ、そうさそこの碑文を読んで、ふと思い出したんだ。",
+        "いや、ただそれだけの話さ……。"
+      ]
+    },
+    {
+      "id": "island-3-01",
+      "island": "3",
+      "kind": "inscription",
+      "name": "青い碑文",
+      "surface": "hallRoof",
+      "position": [
+        0,
+        0,
+        -20
+      ],
+      "yawDegrees": 115,
+      "searchRadius": 5,
+      "color": "668AAE",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "聖なる数の中には、鏡の向こうにも同じく聖なる力を宿すものあり。\nその最も小さき二対を見出せ。",
+        "鏡を隔てて向かい合う四つの地には、\n旅人の助けとなるものが眠るという。"
+      ]
+    },
+    {
+      "id": "island-3-02",
+      "island": "3",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -4,
+        0,
+        -29
+      ],
+      "yawDegrees": 65,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "鏡に映る数、か……。\nそういえば、数字を逆から読んでも、同じ性質を持つものがあるらしいね。",
+        "しかも、元の数とは違う数になるんだとか。\n……この碑文は、その中でも小さな組を探せと言っているのかな。",
+        "まあ、僕にはよくわからないけどね。"
+      ]
+    },
+    {
+      "id": "island-13-01",
+      "island": "13",
+      "kind": "item",
+      "name": "疾走の薬",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -23
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "48C2FF",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "dash",
+      "pages": [
+        "薬を飲み干した。ダッシュ速度が上がった。"
+      ]
+    },
+    {
+      "id": "island-31-01",
+      "island": "31",
+      "kind": "item",
+      "name": "跳躍の薬",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -23
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "FF616E",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "jump",
+      "pages": [
+        "薬を飲み干した。ジャンプ力が上がった。"
+      ]
+    },
+    {
+      "id": "island-17-01",
+      "island": "17",
+      "kind": "item",
+      "name": "跳躍の薬",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -23
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "FF616E",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "jump",
+      "pages": [
+        "薬を飲み干した。ジャンプ力が上がった。"
+      ]
+    },
+    {
+      "id": "island-71-01",
+      "island": "71",
+      "kind": "item",
+      "name": "疾走の薬",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -23
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "48C2FF",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "dash",
+      "pages": [
+        "薬を飲み干した。ダッシュ速度が上がった。"
+      ]
+    },
+    {
+      "id": "island-71-02",
+      "island": "71",
+      "kind": "inscription",
+      "name": "青い碑文",
+      "surface": "hallRoof",
+      "position": [
+        -4,
+        0,
+        -29
+      ],
+      "yawDegrees": 20,
+      "searchRadius": 5,
+      "color": "668AAE",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "かつて、数の深淵を知る賢者あり。\n幾何の理を新たに築きし者なり。",
+        "九百八十三を二つ合わせし年。\nかの者はその叡智を讃えられ、大いなる栄誉を授かりしも、その晴れの席には姿を現さざりき。",
+        "然れど、いかなる賢者とて過ちを免れず。",
+        "かの賢者が「神聖にして割かれざるもの」と呼びし数あり。",
+        "その数「神聖にして割かれざるもの」にあらず。",
+        "賢者が見誤りし数の地を訪ねよ。"
+      ]
+    },
+    {
+      "id": "island-71-03",
+      "island": "71",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -22,
+        0,
+        -18
+      ],
+      "yawDegrees": 65,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "偉大なる賢者というのは、何もかも知っているように思えるだろう？",
+        "けれど、どれほど優れた頭脳の持ち主でも、思い違いをすることはある。",
+        "むしろ、あまりに偉大だからこそ、\nその小さな間違いが後世まで語り継がれることもあるんだ。",
+        "……そういえば、そこの碑文にも、そんな賢者の話が書かれていたね。\nいや、ただそれだけの話さ。"
+      ]
+    },
+    {
+      "id": "island-57-01",
+      "island": "57",
+      "kind": "item",
+      "name": "飛翔の薬",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -23
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "68F29D",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "flight",
+      "pages": [
+        "薬を飲み干した。飛行能力を得た。\nジャンプ中にＦで飛行し、視線の方向へ進み続ける。シフトキーで加速。"
+      ]
+    },
+    {
+      "id": "island-57-02",
+      "island": "57",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        3,
+        0,
+        -17
+      ],
+      "yawDegrees": 300,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "よくここを見つけたね。",
+        "だってずるいじゃん。ここは赤くない。\n黒い番号なんだ。",
+        "……だいじょうぶ。もうこんなことはないから。\nああ、ぼくは何を言っているんだろう……。"
+      ]
+    },
+    {
+      "id": "island-7-01",
+      "island": "7",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        22,
+        0,
+        29
+      ],
+      "yawDegrees": 180,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "毎夜、双子は生まれたり。\n十六夜の月に祝福されし、その兄を訪ねよ。",
+        "次なる言葉は、そこに眠る。"
+      ]
+    },
+    {
+      "id": "island-7-02",
+      "island": "7",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -22,
+        0,
+        9
+      ],
+      "yawDegrees": 35,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "双子なのに兄と弟に分けるって、なんだか変だよな。\nほとんど同じなのにさ。",
+        "でも、よく見ると少し違うんだよな。ひとつ……いや、ふたつ違うのか。",
+        "まあ、大きい方が兄ってことかな。",
+        "そういえば、双子っていったい何組いるんだろうね。\n数えきれないくらいいるのかな。"
+      ]
+    },
+    {
+      "id": "island-7-03",
+      "island": "7",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        3,
+        0,
+        24
+      ],
+      "yawDegrees": 255,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "この世界の月は満ち欠けしないからね、\n夜を数えられないんだ。",
+        "数えられたら……どうなるのかな……。"
+      ]
+    },
+    {
+      "id": "island-229-01",
+      "island": "229",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        29,
+        0,
+        16
+      ],
+      "yawDegrees": 270,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "かつて、法の裁きを司りながら、\n賢者たちに難題を突きつけし者あり。",
+        "数世紀の時を越え、なお後世の賢者たちを翻弄せし賢者なり。\nかの者は、ある数の並びに不変の理を見出せり。",
+        "されど後世の大賢者は、\n「否、その一つは二つに割れり」とこれを破りぬ。",
+        "祝福されし欠片の、その小さき方を訪ねよ。"
+      ]
+    },
+    {
+      "id": "island-229-02",
+      "island": "229",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -24,
+        0,
+        23
+      ],
+      "yawDegrees": 145,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "最初の五つまではうまくいったんだろ？\nそこに法則を見出した奴もすごいけど、それを覆した奴もすごいよな。"
+      ]
+    },
+    {
+      "id": "island-229-03",
+      "island": "229",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        5,
+        0,
+        4
+      ],
+      "yawDegrees": 325,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "その大賢者ってのは、七つの橋を一度ずつ渡れるか、なんて問題にも挑んだらしいぜ。\nで、どうやっても無理だって証明しちまったんだと。",
+        "……そんなことまでわかるんだな。"
+      ]
+    },
+    {
+      "id": "island-641-01",
+      "island": "641",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        15,
+        0,
+        23
+      ],
+      "yawDegrees": 90,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "仲間に囲まれし者は幸いなり。",
+        "四隅に仲間を持つ者は数あれど、\n四番目に祝福されし者を訪ねよ。"
+      ]
+    },
+    {
+      "id": "island-641-02",
+      "island": "641",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -17,
+        0,
+        3
+      ],
+      "yawDegrees": 110,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "あの四つの島にある素敵なアイテムは、もう見つけた？\n実はね、そのうちの一つと、次に探す場所はとてもよく似ているんだ。",
+        "……あまりヒントになってないかな。",
+        "え？　地図？\n地図を探しているのかい？"
+      ],
+      "choice": {
+        "yesPages": [
+          "地図なんてこの世界には無いよ。\n僕たちは地図を見ることはできないんだ。",
+          "「僕たちは」ね……。"
+        ],
+        "noPages": [
+          "じゃあ、もう分かっているんだね……。"
+        ]
+      }
+    },
+    {
+      "id": "island-641-03",
+      "island": "641",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -4,
+        0,
+        27
+      ],
+      "yawDegrees": 225,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "地べたにいたんじゃ　わからない\n空からみたら　わかるかも？",
+        "塔に登って　みたけれど\n霧が深くて　こりゃだめだ…",
+        "斜めの橋は　みんな好き\n地図があったら　いいのにね！"
+      ]
+    },
+    {
+      "id": "island-641-04",
+      "island": "641",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        10,
+        0,
+        -30
+      ],
+      "yawDegrees": 155,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "四人の仲間には必ず双子がいるんだよ。",
+        "……まあ、地図をよく見りゃわかることだけどな。"
+      ]
+    },
+    {
+      "id": "island-641-05",
+      "island": "641",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -6,
+        0,
+        -11
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "sitting",
+      "leanAgainstWall": true,
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "双子の候補を片っ端から百三十組も調べたってのに、四つ目が見つからねえ……。\n三つ目までは割とすんなり見つかったんだがなぁ。",
+        "くそっ、あと何組調べりゃいいんだよ……。"
+      ]
+    },
+    {
+      "id": "island-641-06",
+      "island": "641",
+      "kind": "resident",
+      "name": "遠くを見つめる人",
+      "surface": "towerRoof",
+      "position": [16, 0, 30],
+      "yawDegrees": 331.4122,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "五人の聖者が十字に並ぶ、そういう場所をいくつか知っている。",
+        "十字といっても、地図の上では４５度傾いているけどな。",
+        "八つの橋が架かる島。その四番目か……。",
+        "……さすがに、ここからは見えないな。"
+      ]
+    },
+    {
+      "id": "island-701-01",
+      "island": "701",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        25,
+        0,
+        27
+      ],
+      "yawDegrees": 200,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "史上もっとも偉大なる大賢者は、\n法則なき混沌の中に、類まれなる法則を発見せり。",
+        "４０回にわたる実験は、ことごとく成就した。\nされど４１回目の実験は失敗し、かの法則は破れたり。",
+        "最後の成功が生み出せし場所を訪ねよ。"
+      ]
+    },
+    {
+      "id": "island-701-02",
+      "island": "701",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -26,
+        0,
+        16
+      ],
+      "yawDegrees": 280,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "せっかく綺麗な法則なのに、地図で見るとあんまり綺麗じゃないんだよね……。\n最初の島が４１だったらよかったのにね。"
+      ]
+    },
+    {
+      "id": "island-1601-01",
+      "island": "1601",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        30,
+        0,
+        22
+      ],
+      "yawDegrees": 270,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "ここに、二人の石工あり。\nそれぞれ己が手にて、石の賽子を切り出しその大きさを競いたり。",
+        "勝負はいつも僅差にて決し、\n大きな賽子も、ほんのひと回り勝るのみなりき。",
+        "敗れし者は、己が賽子と同じだけ、勝者の賽子を削り取りぬ。",
+        "かくして争いは、幾度となく繰り返さる。\nその果てに残されし石には、まれに聖なる力が宿るという。",
+        "人々は聖なる石を、小さきものより順に並べたり。",
+        "その二十三番目の石を訪ねよ。\nかの地にて、道はひらかれん。"
+      ]
+    },
+    {
+      "id": "island-1601-02",
+      "island": "1601",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -21,
+        0,
+        26
+      ],
+      "yawDegrees": 75,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "聖なる力ってなんだろうね。",
+        "聞いた話じゃ、聖なる石は、どんなに叩いても割れないんだって。\nだから神聖なんだろうねぇ。"
+      ]
+    },
+    {
+      "id": "island-1601-03",
+      "island": "1601",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        4,
+        0,
+        13
+      ],
+      "yawDegrees": 195,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "賽子ってさ、六つの面が全部同じ正方形だから、一から六までどの目も公平に出るんだよな。\nよくできた形だよなぁ。"
+      ]
+    },
+    {
+      "id": "island-1601-04",
+      "island": "1601",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -19,
+        0,
+        -30
+      ],
+      "yawDegrees": 25,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "俺さ、てっきり常夏の海に浮かぶ、あの島国のことだと思ってたんだよ。\nなんていうか、そこの偉い数学者とかがさ、発見したとかさ……。",
+        "……全然関係ないんだってな。\n紛らわしい名前だよなぁ……"
+      ]
+    },
+    {
+      "id": "island-1601-05",
+      "island": "1601",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        9,
+        0,
+        -19
+      ],
+      "yawDegrees": 250,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "sitting",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "最初は七。そこから十二、十八、二十四……と順に足していく……。\n三十八回目で、ようやく二十一個目の当たりか……。",
+        "……あと少しだ。\nがんばれ、俺。がんばれ……。"
+      ]
+    },
+    {
+      "id": "island-5419-01",
+      "island": "5419",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        27,
+        0,
+        20
+      ],
+      "yawDegrees": 300,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "かつて、奇と偶の理を見出せし賢者あり。\nかの者、奇なるものが偶なるものに劣ることなしと説きたり。",
+        "幾千万の数を重ねども、その理は揺るがず、\n永久の真理と信じられたり。",
+        "幾十年の時を経て、さる賢者はその理の偽りなるを証せり。\nいまだ破れし数をひとつも知らぬままに。",
+        "やがて、破れし数のひとつが見出されしも、\nそれが最も若きものかは、なお闇の中にありき。",
+        "さらに長き歳月を経て、ついに最も若き破れがその姿を現せり。",
+        "その数、神聖さを半ばしか宿さず。\n二つの真に神聖なる数の積により成り立つものなり。",
+        "その大いなる方を求めよ。"
+      ]
+    },
+    {
+      "id": "island-5419-02",
+      "island": "5419",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -12,
+        0,
+        28
+      ],
+      "yawDegrees": 165,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "聖なる数か……。",
+        "この世界で最も大切なものだね。\nここまで来た君なら分かるよね……。"
+      ]
+    },
+    {
+      "id": "island-5419-03",
+      "island": "5419",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -25,
+        0,
+        5
+      ],
+      "yawDegrees": 310,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "あの二つの数は、どっちも五桁なんだってさ。\n俺は適当な五桁の数選んで何度も何度も試したけど、さっぱりだった。",
+        "でも、愚直に端から調べ始めた奴がいてな。\nそいつ、あっさり先へ進んじまったんだよ。",
+        "なんか拍子抜けしちまったっていうか……。"
+      ]
+    },
+    {
+      "id": "island-5419-04",
+      "island": "5419",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "hallRoof",
+      "position": [
+        -9,
+        0,
+        -27
+      ],
+      "yawDegrees": 100,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "なんか床に数字が書いてあったんだ。\nもう風化して読めなくなっちまったがな、ところどころ読み取れなくて……",
+        "確か……",
+        "「＊＊６１５＊２５７」"
+      ]
+    },
+    {
+      "id": "island-90263-01",
+      "island": "90263",
+      "kind": "inscription",
+      "name": "紫の碑文",
+      "surface": "towerLanding",
+      "landing": 2,
+      "position": [
+        15,
+        0,
+        12.5
+      ],
+      "yawDegrees": 90,
+      "searchRadius": 0,
+      "color": "9374B5",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "かつて、数の真理を追い求めし神の僕あり。",
+        "かの者、十一人の騎士を従え、\nこれぞ聖なる騎士団なりと世に説きたり。",
+        "されど、その騎士団には二人の反逆者が潜み、\n三人の真なる騎士は招かれざりき。",
+        "幾世紀の時を経て、一人の賢者あり。",
+        "かの者、偽りの騎士の一人を討ち取りぬ。\nその偉業、ただ沈黙をもって成し遂げられたり。",
+        "かの神の僕の名を冠せし騎士たちを、\nここに「祈りの騎士」と呼ぶ。"
+      ]
+    },
+    {
+      "id": "island-90263-02",
+      "island": "90263",
+      "kind": "inscription",
+      "name": "紫の碑文",
+      "surface": "towerLanding",
+      "landing": 3,
+      "position": [
+        15,
+        0,
+        31.5
+      ],
+      "yawDegrees": 90,
+      "searchRadius": 0,
+      "color": "9374B5",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "遠き天竺　拍子を数え\n歌詠む賢者　法を見た",
+        "海を渡って　遥かな西へ\n算盤の知恵　花ひらく",
+        "数の並びに　賢者の名前\nつがいは来年　何組か",
+        "聖なる力　宿すものなら\n「継承の騎士」と　名づけたり"
+      ]
+    },
+    {
+      "id": "island-90263-03",
+      "island": "90263",
+      "kind": "inscription",
+      "name": "赤い碑文",
+      "surface": "towerInterior",
+      "position": [
+        22,
+        0,
+        28
+      ],
+      "yawDegrees": 180,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "百万の門をくぐりし騎士らが集い。",
+        "祈りの騎士より、最も大いなる二騎を選べ。\n継承の騎士より、最も大いなる一騎を選べ。",
+        "三騎の力をひとつに合わせよ。",
+        "その力は再び聖なるものとなり、\n長き旅路の終わりに導かん。"
+      ]
+    },
+    {
+      "id": "island-90263-04",
+      "island": "90263",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        -18,
+        0,
+        14
+      ],
+      "yawDegrees": 45,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "当たり前だが、門の間口より図体がでかけりゃくぐれねぇよな。\n「百万の門」ってのは、百万ちょうどでも通れないらしいぜ。",
+        "しかし、百万に届いた途端、でかすぎるってんでお払い箱とはな。\n騎士様も大変だねぇ。"
+      ]
+    },
+    {
+      "id": "island-90263-05",
+      "island": "90263",
+      "kind": "resident",
+      "name": "旅人",
+      "surface": "ground",
+      "position": [
+        6,
+        0,
+        26
+      ],
+      "yawDegrees": 270,
+      "searchRadius": 5,
+      "color": "AC6161",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "聖なる数ってのは、掛け合わせると必ず「聖なる力」を失っちまうんだとさ。\nところが、足し合わせた場合は、聖なる力が残ることもあるらしい。",
+        "……神様のご加護ってのも、ずいぶん気まぐれなもんだねぇ。"
+      ]
+    },
+    {
+      "id": "island-1169587-02",
+      "island": "1169587",
+      "kind": "resident",
+      "name": "旅人？",
+      "surface": "towerInterior",
+      "position": [
+        29.5,
+        0,
+        31
+      ],
+      "yawDegrees": 225,
+      "searchRadius": 0,
+      "color": "D8F4E8",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "やあ、遅かったね。\n待ちくたびれたよ。",
+        "……おや？\n君、まだ何も思い出せていないのかい？",
+        "それなのに、ここまで辿り着いたっていうのか。\nははっ、たいしたものだ。さすがは君だね。",
+        "このバックドアを用意したのは、君の同僚だよ。",
+        "それにしても、ずいぶん面倒でややこしい仕掛けにしたものだね。\n……まあ、心当たりはあるけどね。",
+        "君、いつも彼に数学でマウントを取っていただろう？\nきっとこれは、彼なりのささやかな復讐なんだろうね。ははは。",
+        "さて……ぼくはどうしようかな。",
+        "うん、もう少しここで待ってみることにするよ。\nもしかしたら、もうすぐ辿り着く仲間がいるかもしれないしね。",
+        "……え？　出口はどこかって？",
+        "すぐそこだよ。\nほら、上を見てごらん。"
+      ]
+    },
+    {
+      "id": "island-1169587-01",
+      "island": "1169587",
+      "kind": "exit",
+      "name": "脱出の碑石",
+      "surface": "towerLanding",
+      "landing": 1,
+      "position": [
+        22,
+        0,
+        12.2
+      ],
+      "yawDegrees": 0,
+      "searchRadius": 0,
+      "color": "D8F4E8",
+      "pose": "standing",
+      "age": "adult",
+      "gender": "male",
+      "effect": "none",
+      "pages": [
+        "碑石は輝いている。\n触れてみますか？"
+      ]
+    }
+  ]
+}

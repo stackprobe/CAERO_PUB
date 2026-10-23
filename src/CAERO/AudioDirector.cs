@@ -22,6 +22,7 @@ internal readonly record struct AudioMix(float Underwater, float Day, float Nigh
 internal sealed class AudioDirector : IDisposable
 {
     internal const float StepVolume = .103125f, JumpVolume = .24375f, LandingScale = .375f;
+    internal const float BumpVolume = 1f, DrinkVolume = .8f;
     private sealed class Loop(Music music, GCHandle memory)
     {
         public Music Music = music;
@@ -35,6 +36,15 @@ internal sealed class AudioDirector : IDisposable
     private bool wasAudible;
     public bool Ready { get; private set; }
     public bool Muted { get; private set; }
+    private bool suspended;
+    internal void Suspend(bool value)
+    {
+        if (!Ready || suspended == value) return;
+        suspended = value;
+        if (value) foreach (var sound in sounds.Values) Raylib.StopSound(sound);
+        foreach (var loop in loops.Values)
+            if (value) Raylib.PauseMusicStream(loop.Music); else Raylib.ResumeMusicStream(loop.Music);
+    }
     internal bool LoopsPlaying => Ready && loops.Count == 3 && loops.Values.All(l => Raylib.IsMusicStreamPlaying(l.Music));
     private Vector3? previous;
     private float stepDistance, strokeTime, lampCooldown, gain;
@@ -73,7 +83,7 @@ internal sealed class AudioDirector : IDisposable
             foreach (string name in BgmAssets.Names)
                 StartLoop(name, Raylib.LoadMusicStream(BgmAssets.PathFor(name)));
             Ready = true;
-            Console.WriteLine("AUDIO: day/night music, quiet underwater loop and nine effects ready; no wave or wind audio.");
+            Console.WriteLine("AUDIO: day/night music, quiet underwater loop and eleven effects ready; no wave or wind audio.");
         }
         catch (Exception error)
         {
@@ -100,7 +110,8 @@ internal sealed class AudioDirector : IDisposable
 
     public void Update(float dt, World world, Explorer explorer, Renderer renderer)
     {
-        if (!Ready) return;
+        bool drank = explorer.ConsumePotionDrink();
+        if (!Ready || suspended) return;
         dt = Math.Clamp(dt, 0, .1f);
         bool audible = Raylib.IsWindowFocused() && !Muted;
         if (!audible && wasAudible) foreach (var sound in sounds.Values) Raylib.StopSound(sound);
@@ -108,14 +119,16 @@ internal sealed class AudioDirector : IDisposable
         UpdateMix(dt, AudioMix.At(explorer.Position.Y, renderer.Sky.Night), audible);
         Vector3 delta = previous.HasValue ? explorer.Position - previous.Value : Vector3.Zero;
         previous = explorer.Position;
-        if (delta.LengthSquared() > 16) { ResetListener(explorer.Position); return; }
         if (audible)
         {
+            if (explorer.FlightBumped) Play("bump", BumpVolume);
+            if (drank) Play("drink", DrinkVolume);
             if (explorer.Jumped) Play("jump", JumpVolume);
             if (explorer.SplashImpact > 0) Play("splash", Math.Clamp(explorer.SplashImpact / 24, .22f, 1));
             if (explorer.Surfaced) Play("surface", .65f);
             if (explorer.LandingImpact > 0) Play("land", Math.Clamp(explorer.LandingImpact / 20, .18f, .8f) * LandingScale);
         }
+        if (delta.LengthSquared() > 16) { ResetListener(explorer.Position); return; }
         if (explorer.Grounded && !explorer.Flying)
         {
             stepDistance += new Vector2(delta.X, delta.Z).Length();

@@ -41,7 +41,15 @@ internal static class WindowHost
         int width = Math.Min(1440, monitor.Work.Right - monitor.Work.Left - 64);
         int height = Math.Min(900, monitor.Work.Bottom - monitor.Work.Top - 64);
         Raylib.SetConfigFlags(ConfigFlags.ResizableWindow | ConfigFlags.Msaa4xHint | ConfigFlags.HiddenWindow);
-        Raylib.InitWindow(width, height, "CAERO5 | The wandering citadels");
+        Raylib.InitWindow(width, height, "CAERO | The Silent Archipelago");
+        using (var stream = typeof(WindowHost).Assembly.GetManifestResourceStream("CAERO.ApplicationIcon.png")
+            ?? throw new InvalidDataException("Application icon is missing."))
+        {
+            using var bytes = new MemoryStream(); stream.CopyTo(bytes);
+            var icon = Raylib.LoadImageFromMemory(".png", bytes.ToArray());
+            try { Raylib.SetWindowIcon(icon); }
+            finally { Raylib.UnloadImage(icon); }
+        }
         Raylib.SetWindowPosition(monitor.Monitor.Left + (monitor.Monitor.Right - monitor.Monitor.Left - width) / 2,
             monitor.Monitor.Top + (monitor.Monitor.Bottom - monitor.Monitor.Top - height) / 2);
         Raylib.ClearWindowState(ConfigFlags.HiddenWindow);

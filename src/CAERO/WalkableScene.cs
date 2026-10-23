@@ -6,6 +6,8 @@ namespace Caero;
 internal sealed class WalkableScene
 {
     internal Vector3 Offset { get; set; }
+    // Optional island-local geometry can be removed without rebuilding the map.
+    internal WalkableScene? Additional { get; set; }
     private const float CellSize = 8;
     private readonly Dictionary<(int X, int Z), Column> cells = [];
     private sealed class Column
@@ -40,7 +42,7 @@ internal sealed class WalkableScene
     public float FloorAt(float x, float z, float maximum)
     {
         x -= Offset.X; z -= Offset.Z;
-        float floor = float.NegativeInfinity;
+        float floor = Additional?.FloorAt(x, z, maximum) ?? float.NegativeInfinity;
         if (float.IsNaN(maximum) || float.IsNegativeInfinity(maximum) || !cells.TryGetValue((Cell(x), Cell(z)), out var column)) return floor;
         int start = float.IsPositiveInfinity(maximum) ? column.Max : Math.Min(column.Max, Cell(maximum + .001f));
         for (int row = start; row >= column.Min; row--)
@@ -59,7 +61,7 @@ internal sealed class WalkableScene
     public float CeilingAt(float x, float z, float minimum)
     {
         x -= Offset.X; z -= Offset.Z;
-        float ceiling = float.PositiveInfinity;
+        float ceiling = Additional?.CeilingAt(x, z, minimum) ?? float.PositiveInfinity;
         if (float.IsNaN(minimum) || float.IsPositiveInfinity(minimum) || !cells.TryGetValue((Cell(x), Cell(z)), out var column)) return ceiling;
         int start = float.IsNegativeInfinity(minimum) ? column.Min : Math.Max(column.Min, Cell(minimum - .001f));
         for (int row = start; row <= column.Max; row++)
@@ -88,6 +90,7 @@ internal sealed class WalkableScene
     public bool Obstructs(Vector3 from, Vector3 to)
     {
         from -= Offset; to -= Offset;
+        if (Additional?.Obstructs(from, to) == true) return true;
         var lo = Vector3.Min(from, to); var hi = Vector3.Max(from, to);
         for (int x = Cell(lo.X); x <= Cell(hi.X); x++)
             for (int z = Cell(lo.Z); z <= Cell(hi.Z); z++)
@@ -101,6 +104,7 @@ internal sealed class WalkableScene
     internal bool SphereBlocked(Vector3 center, float radius)
     {
         center -= Offset;
+        if (Additional?.SphereBlocked(center, radius) == true) return true;
         for (int x = Cell(center.X - radius); x <= Cell(center.X + radius); x++)
             for (int z = Cell(center.Z - radius); z <= Cell(center.Z + radius); z++)
                 if (cells.TryGetValue((x, z), out var column))
@@ -114,6 +118,7 @@ internal sealed class WalkableScene
     internal bool SurfaceOverlapsBox(Vector3 min, Vector3 max)
     {
         min -= Offset; max -= Offset;
+        if (Additional?.SurfaceOverlapsBox(min, max) == true) return true;
         var visited = new HashSet<Face>();
         for (int x = Cell(min.X); x <= Cell(max.X); x++)
             for (int z = Cell(min.Z); z <= Cell(max.Z); z++)
@@ -143,6 +148,7 @@ internal sealed class WalkableScene
     public bool Blocked(Vector3 eye)
     {
         eye -= Offset;
+        if (Additional?.Blocked(eye) == true) return true;
         const float radius = .30f;
         Vector3 bottom = eye - Vector3.UnitY * (Explorer.EyeHeight - radius - .02f);
         Vector3 top = eye - Vector3.UnitY * radius;

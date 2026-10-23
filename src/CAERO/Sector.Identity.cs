@@ -99,6 +99,12 @@ internal sealed partial class Sector
             var module = WingCatalog.Build(style, reach, depth, height, stone, pale, floor);
             module.Transform(p => new(-p.X, p.Y, -p.Z), new(-37.4f, y, z));
             Stone.Append(module);
+            if (style is 0 or 7 or 9 or 15)
+            {
+                ResidentAreas.Add(new(-37.4f - reach, -37.4f, z - depth / 2, z + depth / 2, y, ResidentAreaKind.OpenGround));
+                if (style == 9)
+                    ResidentAreas.Add(new(-37.4f - reach, -37.4f, z - depth / 2, z + depth / 2, y + height / 2, ResidentAreaKind.OpenUpper));
+            }
             float join = SkylineStyle == 2 && y % 36 == 0 ? -37 : -32;
             Deck(-37.4f, join, z - 1.5f, z + 1.5f, y);
             WingStyles.Add(style); WingReach = Math.Max(WingReach, reach);

@@ -14,7 +14,7 @@ internal sealed record NightLight(Vector3 LocalPosition, float Radius, Vector3 L
 }
 
 // Only island addresses are global. Every simulation/render position is relative to Origin.
-internal sealed class World : IDisposable
+internal sealed partial class World : IDisposable
 {
     public const float WaterLevel = -18.75f, SeaFloor = -64;
     public const int DefaultSeed = 1701, CellSize = 192, LoadRadius = 2, KeepRadius = 3;
@@ -38,9 +38,16 @@ internal sealed class World : IDisposable
     public event Action<Vector3>? ViewTeleported;
     public int Seed { get; }
     public SeaPredator Predator { get; } = new();
+    internal AdventureProgress Progress { get; } = new();
     public int LoadedCount => sectors.Count;
-    public bool Generating => pending != null;
+    public bool Generating => pending != null || warp?.Generation != null;
+    internal (long X, long Z)? GenerationCell => pending != null ? pendingKey
+        : warp?.Generation != null ? (warp.X, warp.Z) : null;
     public IEnumerable<SceneChunk> Chunks => sectors.Values.SelectMany(s => s.Chunks)
+        .Concat(sectors.Values.SelectMany(s => s.SpecialObjects)
+            .Where(o => o.Definition.Kind != SpecialKind.Item || !Progress.Collected(o.Definition.Id))
+            .Select(o => o.Chunk).OfType<SceneChunk>())
+        .Concat(sectors.Values.SelectMany(s => s.SpecialObjects).Select(o => o.PedestalChunk).OfType<SceneChunk>())
         .Concat(diagonalBridges.Values.Select(b => b.Chunk).OfType<SceneChunk>());
     public IEnumerable<NightLight> Lights => sectors.Values.SelectMany(s => s.Lights);
     public IEnumerable<Resident> People => sectors.Values.SelectMany(s => s.People);
@@ -84,8 +91,10 @@ internal sealed class World : IDisposable
         OriginShifted?.Invoke(-delta);
     }
 
-    internal void Teleport(Explorer player, WorldPosition address, float safetySeconds = 3, int radius = LoadRadius)
+    internal void Teleport(Explorer player, WorldPosition address, float safetySeconds = 3, int radius = LoadRadius,
+        Func<Sector, Viewpoint>? destinationView = null)
     {
+        CancelWarp();
         address = address.Normalized();
         OriginX = address.IslandX; OriginZ = address.IslandZ;
         Evict((OriginX, OriginZ));
@@ -93,6 +102,7 @@ internal sealed class World : IDisposable
         foreach (var bridge in diagonalBridges.Values) bridge.SetOrigin(OriginX, OriginZ);
         player.Position = address.Local;
         EnsureAround(address.Local, radius);
+        if (destinationView != null) player.GoTo(destinationView(sectors[(OriginX, OriginZ)]));
         Predator.Reset(this, player.Position, safetySeconds);
         ViewTeleported?.Invoke(player.Position);
     }
@@ -115,6 +125,9 @@ internal sealed class World : IDisposable
     public void Update(Vector3 position)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        ReleaseAbandonedGenerations();
+        // Keep the departure scene intact while the arrival island is built.
+        if (warp is { Arrived: false }) return;
         UpdateNumberSigns();
         var center = GlobalCell(position);
         Evict(center);
@@ -139,7 +152,9 @@ internal sealed class World : IDisposable
     private void Install(Sector sector)
     {
         sector.SetOrigin(OriginX, OriginZ);
-        if (upload) { sector.Upload(); MeshUploadCount += sector.Chunks.Count; }
+        foreach (var bridge in diagonalBridges.Values)
+            if (sector.SeaStairOverlaps(bridge)) { sector.OmitSeaStair(); break; }
+        if (upload) { sector.Upload(); MeshUploadCount += sector.Chunks.Count + sector.SpecialObjects.Sum(o => o.PedestalChunk == null ? 1 : 2); }
         else sector.ReleaseGeometry();
         sectors.Add((sector.X, sector.Z), sector); InstalledSectorCount++;
         numberSigns.Enqueue(sector);
@@ -153,11 +168,11 @@ internal sealed class World : IDisposable
         for (int steps = 0; steps < 64 && numberSigns.Count > 0; steps++)
         {
             var sector = numberSigns.Dequeue();
-            if (!sector.WayfindingDisposed && !sector.NumberIsPrime.HasValue)
+            if (!sector.WayfindingDisposed && sector.NumberWorkPending)
             {
                 sector.StepNumberPrime();
                 LastPrimeWorkSteps++;
-                if (!sector.NumberIsPrime.HasValue) numberSigns.Enqueue(sector);
+                if (sector.NumberWorkPending) numberSigns.Enqueue(sector);
             }
             if (System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds >= PrimeBudgetMilliseconds) break;
         }
@@ -173,7 +188,7 @@ internal sealed class World : IDisposable
             for (int i = numberSigns.Count; i > 0; i--)
             {
                 var sector = numberSigns.Dequeue();
-                if (!sector.WayfindingDisposed && !sector.NumberIsPrime.HasValue) numberSigns.Enqueue(sector);
+                if (!sector.WayfindingDisposed && sector.NumberWorkPending) numberSigns.Enqueue(sector);
             }
     }
     private void UpdateDiagonalBridges()
@@ -189,6 +204,11 @@ internal sealed class World : IDisposable
                 var to = (sector.X + 1, (long)z);
                 if (diagonalBridges.ContainsKey((from, to)) ||
                     !sectors.TryGetValue(to, out var neighbor) || neighbor.NumberIsPrime != true) continue;
+                // Prime proofs finish incrementally. Decide once the bridge is
+                // known to exist, before it takes ownership of junction faces.
+                using (var preview = new DiagonalBridge(sector, neighbor, false))
+                    foreach (var candidate in sectors.Values)
+                        if (candidate.SeaStairOverlaps(preview)) candidate.OmitSeaStair();
                 var bridge = new DiagonalBridge(sector, neighbor, upload);
                 bridge.SetOrigin(OriginX, OriginZ);
                 diagonalBridges.Add((from, to), bridge);
@@ -235,17 +255,22 @@ internal sealed class World : IDisposable
         floor = Math.Max(floor, SurfaceBelow(x + .35f, z, maximum));
         floor = Math.Max(floor, SurfaceBelow(x - .35f, z, maximum));
         floor = Math.Max(floor, SurfaceBelow(x, z + .35f, maximum));
-        return Math.Max(floor, SurfaceBelow(x, z - .35f, maximum));
+        floor = Math.Max(floor, SurfaceBelow(x, z - .35f, maximum));
+        foreach (var person in People)
+            if (person.CollisionTop <= maximum && person.SharesColumn(x, z)) floor = Math.Max(floor, person.CollisionTop);
+        return floor;
     }
     public float CeilingAbove(Vector3 eye)
     {
         float ceiling = float.PositiveInfinity;
         foreach (var s in Nearby(eye.X, eye.Z)) ceiling = Math.Min(ceiling, s.Collision.CeilingAt(eye.X, eye.Z, eye.Y));
         foreach (var b in diagonalBridges.Values) ceiling = Math.Min(ceiling, b.Collision.CeilingAt(eye.X, eye.Z, eye.Y));
+        foreach (var person in People)
+            if (person.Position.Y >= eye.Y && person.SharesColumn(eye.X, eye.Z)) ceiling = Math.Min(ceiling, person.Position.Y);
         return ceiling;
     }
     public bool Blocked(Vector3 p) => Nearby(p.X, p.Z).Any(s => s.Collision.Blocked(p))
-        || diagonalBridges.Values.Any(b => b.Collision.Blocked(p));
+        || diagonalBridges.Values.Any(b => b.Collision.Blocked(p)) || People.Any(person => person.Blocks(p));
     internal bool SphereBlocked(Vector3 p, float radius, bool includeSeabed = true)
     {
         if (includeSeabed && p.Y - radius < SeaFloor) return true;
@@ -260,9 +285,12 @@ internal sealed class World : IDisposable
     {
         if (disposed) return;
         disposed = true;
+        CancelWarp();
         try { pending?.GetAwaiter().GetResult().Dispose(); }
         finally
         {
+            foreach (var task in abandonedGenerations) DisposeGeneration(task);
+            abandonedGenerations.Clear();
             foreach (var b in diagonalBridges.Values) b.Dispose(); diagonalBridges.Clear();
             foreach (var s in sectors.Values) s.Dispose(); sectors.Clear(); numberSigns.Clear();
         }

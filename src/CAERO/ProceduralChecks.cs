@@ -16,6 +16,9 @@ internal static class ProceduralChecks
         SurfaceChecks.Run();
         DayNightChecks.Run();
         WayfindingChecks.Run();
+        WarpChecks.Run();
+        SpecialChecks.Run();
+        MenuChecks.Run();
         DiagonalBridgeChecks.Run();
         ResidentChecks.Run();
         PredatorChecks.Run();
@@ -38,6 +41,7 @@ internal static class ProceduralChecks
         CheckSpeedModes(world);
         ChaosChecks.Jumps(world);
         WaterMovementChecks.Run(world);
+        FlightChecks.Run();
         var representatives = world.Sectors.GroupBy(s => (s.Rotation, s.HallHeight, s.TowerFloors)).Select(g => g.First()).ToArray();
         Check(representatives.Select(s => s.Rotation).Distinct().Count() == 4, "all four orientations covered");
         var paths = representatives.SelectMany(s => s.Routes.Where(r => !r.Name.StartsWith("highrise"))
@@ -124,30 +128,30 @@ internal static class ProceduralChecks
         var s = world.Sectors.First(s => s.X == 0 && s.Z == 0);
         Vector3 along = Vector3.Normalize(s.Transform(Vector3.UnitZ) - s.Transform(Vector3.Zero));
         foreach (bool flying in new[] { false, true })
-            foreach (var (fast, turbo, speed) in new[] { (false, false, 5f), (true, false, 13f), (false, true, 50f), (true, true, 50f) })
+            foreach (var (fast, speed) in new[] { (false, 5f), (true, 13f) })
             {
                 Vector3 start = s.Transform(new(0, flying ? 80 : Explorer.EyeHeight, 50));
                 var e = new Explorer { Position = start, Flying = flying };
-                e.Advance(.1f, world, along, false, false, false, fast, turbo);
+                e.Advance(.1f, world, along, false, false, false, fast);
                 Check(Math.Abs(Vector3.Dot(e.Position - start, along) - speed * .1f) < .002f,
-                    $"walk/fly speed: flying={flying}, fast={fast}, turbo={turbo}");
+                    $"walk/fly speed: flying={flying}, fast={fast}");
             }
-        foreach (bool turbo in new[] { false, true })
+        foreach (bool fast in new[] { false, true })
         {
             var e = new Explorer { Position = new(80, -25, 80) };
-            e.Advance(.1f, world, Vector3.UnitX, false, false, false, false, turbo);
-            Check(e.Swimming && Math.Abs(e.Position.X - 80 - (turbo ? 4 : .4f)) < .002f, "swimming 10x speed");
+            e.Advance(.1f, world, Vector3.UnitX, false, false, false, fast);
+            Check(e.Swimming && Math.Abs(e.Position.X - 80 - (fast ? .9f : .4f)) < .002f, "normal/Shift swimming speed");
         }
         foreach (float dt in new[] { .01f, .05f, .1f })
         {
             Vector3 start = s.Transform(new(8, Explorer.EyeHeight, 22));
             Vector3 across = Vector3.Normalize(s.Transform(Vector3.UnitX) - s.Transform(Vector3.Zero));
             var e = new Explorer { Position = start };
-            for (int i = 0; i < (int)(.2f / dt); i++)
-                e.Advance(dt, world, across, false, false, false, false, true);
-            Check(Vector3.Dot(e.Position - start, across) < 4 && !world.Blocked(e.Position), "10x movement cannot tunnel through tower wall");
+            for (int i = 0; i < (int)(.4f / dt); i++)
+                e.Advance(dt, world, across, false, false, false, true);
+            Check(Vector3.Dot(e.Position - start, across) < 4 && !world.Blocked(e.Position), "Shift movement cannot tunnel through tower wall");
         }
-        Console.WriteLine("SPEED: normal, Shift, Ctrl 10x, modifier priority, swimming and wall collision passed.");
+        Console.WriteLine("SPEED: normal/Shift walking, flying, swimming and wall collision passed.");
     }
     private static void WaitForStreaming(World world, Vector3 p)
     {
@@ -166,6 +170,9 @@ internal static class ProceduralChecks
     {
         var explorer = new Explorer();
         world.Teleport(explorer, points[0] with { Local = points[0].Local + Vector3.UnitY * Explorer.EyeHeight });
+        // These fixed centerline routes audit architecture without steering.
+        // ResidentChecks exercises body contact and passing on both sides.
+        foreach (var sector in world.Sectors) sector.People.Clear();
         for (int i = 1; i < points.Length; i++)
         {
             var target = world.LocalOf(points[i]);

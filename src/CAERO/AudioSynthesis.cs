@@ -27,6 +27,27 @@ internal static class AudioSynthesis
         result.Add(Effect("jump", .28, 31, (t, n) => .14 * n * Math.Exp(-t * 18)
             + .18 * Math.Sin(Math.Tau * (240 * t + 190 * t * t)) * Math.Exp(-t * 15)));
         result.Add(Effect("land", .36, 32, (t, n) => (.36 * n + .3 * Math.Sin(Math.Tau * 83 * t)) * Math.Exp(-t * 22)));
+        result.Add(Effect("bump", .32, 36, (t, n) =>
+            .5 * Math.Sin(Math.Tau * (440 * t - 450 * t * t)) * Math.Exp(-t * 14)
+            + .08 * n * Math.Exp(-t * 45)));
+        result.Add(Effect("drink", 1.25, 37, (t, n) =>
+        {
+            double value = 0;
+            for (int gulp = 0; gulp < 4; gulp++)
+            {
+                double onset = gulp switch { 0 => .03, 1 => .27, 2 => .49, _ => .69 };
+                double u = t - onset;
+                if (u is < 0 or > .22) continue;
+                double envelope = Math.Sin(Math.PI * u / .22) * Math.Exp(-u * 9);
+                value += envelope * (.48 * Math.Sin(Math.Tau * (290 * u - 420 * u * u))
+                    + .12 * Math.Sin(Math.Tau * (630 * u - 700 * u * u)) + .16 * n);
+            }
+            double swallow = t - .95;
+            if (swallow is >= 0 and < .25)
+                value += Math.Sin(Math.PI * swallow / .25) * Math.Exp(-swallow * 10)
+                    * (.28 * Math.Sin(Math.Tau * 115 * swallow) + .2 * n);
+            return value;
+        }));
         result.Add(Effect("stroke", .65, 34, (t, n) => .3 * n * Math.Sin(Math.PI * t / .65) * Math.Exp(-t * 4)));
         result.Add(Effect("lamp", 1.8, 35, (t, n) => .13 * (Math.Sin(Math.Tau * 880 * t)
             + .45 * Math.Sin(Math.Tau * 1320 * t)) * Math.Exp(-t * 4)));

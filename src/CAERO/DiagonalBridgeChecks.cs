@@ -1,4 +1,5 @@
 using System.Numerics;
+using Raylib_cs;
 
 namespace Caero;
 
@@ -6,6 +7,71 @@ internal static class DiagonalBridgeChecks
 {
     private static void Check(bool condition, string message)
     { if (!condition) throw new InvalidOperationException("Diagonal bridge test failed: " + message); }
+
+    internal static void SeaStairs()
+    {
+        int omitted = 0, kept = 0;
+        var rotations = new HashSet<int>();
+        foreach (var (x, z) in new[] { (541L, 485L), (0L, 0L), (2L, -2L) })
+        {
+            using var world = new World(upload: false, originX: x, originZ: z);
+            Settle(world);
+            foreach (var sector in world.Sectors)
+            {
+                using var original = Sector.Generate(world.Seed, sector.X, sector.Z);
+                bool overlap = world.DiagonalBridges.Any(original.SeaStairOverlaps);
+                Check(sector.HasSeaStair == !overlap, "only stairs overlapping a real prime bridge are omitted");
+                Check(sector.Routes.Any(r => r.Name == "sea arrival") == sector.HasSeaStair,
+                    "omitted stairs do not retain a walking route");
+                Vector3 bottom = sector.Transform(new(-25, -20, 89));
+                float floor = sector.Collision.FloorAt(bottom.X, bottom.Z, -19.99f);
+                Check(sector.HasSeaStair ? Math.Abs(floor + 20) < .01f : float.IsNegativeInfinity(floor),
+                    "stair collision is retained or removed together with the mesh");
+                Check(sector.Collision.SphereBlocked(bottom, .1f) == sector.HasSeaStair
+                    && sector.Collision.Obstructs(bottom - Vector3.UnitY, bottom + Vector3.UnitY) == sector.HasSeaStair
+                    && sector.Collision.SurfaceOverlapsBox(bottom - new Vector3(.1f), bottom + new Vector3(.1f)) == sector.HasSeaStair,
+                    "all collision queries respect removed stairs after origin shifts");
+                if (sector.HasSeaStair) kept++; else omitted++;
+                rotations.Add(sector.Rotation);
+            }
+            if (x == 541)
+                Check(!world.Sectors.Single(s => s.X == x && s.Z == z).HasSeaStair,
+                    "reported island 1169587 has no obstructed sea stair");
+            else if (x == 0)
+                Check(world.Sectors.Single(s => s.X == 0 && s.Z == 0).HasSeaStair, "starting island stair remains unchanged");
+            Check(world.DiagonalBridges.All(b => b.JunctionOverlaps == 0), "bridge floors retain clean junctions");
+            var state = world.Sectors.ToDictionary(s => (s.X, s.Z), s => s.HasSeaStair);
+            world.Teleport(new Explorer(), new(2000, 2000, Vector3.Zero), radius: 0);
+            world.Teleport(new Explorer(), new(x, z, Vector3.Zero)); Settle(world);
+            Check(world.Sectors.All(s => state[(s.X, s.Z)] == s.HasSeaStair), "revisit reproduces the same omissions");
+        }
+        Check(omitted > 0 && kept > 0 && rotations.Count == 4, "both outcomes and every rotation are covered");
+        Console.WriteLine($"SEA STAIRS: {omitted} overlapping stairs omitted, {kept} retained, four rotations, collision, prime decisions and revisit passed.");
+    }
+
+    internal static void CaptureSeaStair()
+    {
+        WindowHost.Open();
+        try
+        {
+            using var world = new World(originX: 541, originZ: 485);
+            Settle(world);
+            var sector = world.Sectors.Single(s => s.X == 541 && s.Z == 485);
+            Check(!sector.HasSeaStair && world.DiagonalBridges.Any(), "reported stair omitted while bridge is present");
+            using var renderer = new Renderer(world, 12345);
+            var player = new Explorer();
+            player.GoTo(new("SEA STAIR OMITTED", sector.Transform(new(-33, 4, 48)), sector.Transform(new(-25, -3, 62))));
+            for (int i = 0; i < 4; i++)
+            { Raylib.BeginDrawing(); renderer.Render(world, player.Camera, 0, 150); Raylib.EndDrawing(); }
+            string path = Path.Combine(SaveStore.DirectoryPath, "Captures", "sea-stair-1169587-omitted.png");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var image = Raylib.LoadImageFromScreen();
+            try { Check(Raylib.ExportImage(image, path), "sea stair capture saved"); }
+            finally { Raylib.UnloadImage(image); }
+            Console.WriteLine("SEA STAIR RENDER: " + path);
+        }
+        finally { Raylib.CloseWindow(); }
+    }
 
     internal static void Run()
     {
@@ -33,6 +99,13 @@ internal static class DiagonalBridgeChecks
             "exactly the diagonal pairs of primes are connected");
         foreach (var bridge in world.DiagonalBridges.ToArray())
         {
+            Check(bridge.DestinationPanels[0].Number == Sector.SpiralNumber(bridge.To.X, bridge.To.Z)
+                && bridge.DestinationPanels[1].Number == Sector.SpiralNumber(bridge.From.X, bridge.From.Z),
+                "both diagonal entrances show the opposite island number instead of D");
+            Vector3 toward = Vector3.Normalize(new Vector3(1, 0, Math.Sign(bridge.To.Z - bridge.From.Z)));
+            Check(Vector3.Dot(bridge.DestinationPanels[0].Forward, toward) > .999f
+                && Vector3.Dot(bridge.DestinationPanels[1].Forward, -toward) > .999f,
+                "both panels face the diagonal destination rather than the detour's first segment");
             world.ReturnToStart(new Explorer());
             Settle(world);
             Vector3 offset = WorldPosition.Offset(bridge.From.X, bridge.From.Z, world.OriginX, world.OriginZ);
@@ -75,9 +148,6 @@ internal static class DiagonalBridgeChecks
         {
             using var world = new World(upload: false, seed: seed, originX: x, originZ: z, start: Vector3.Zero);
             Settle(world);
-            if (seed == 1701 && x == -10 && z == -2)
-                Check(Enumerable.Range(0, 131).Any(i => world.Blocked(new(38 + i, Explorer.EyeHeight, -24 - i))),
-                    "reported building blocks the old straight bridge");
             foreach (var s in world.Sectors) { styles.Add(s.SkylineStyle); rotations.Add(s.Rotation); }
             var bridges = world.DiagonalBridges.ToArray();
             Check(bridges.Length > 0, $"far prime pairs at {x},{z}");

@@ -10,8 +10,9 @@ internal static class AudioChecks
     public static void Run(bool device)
     {
         var clips = AudioSynthesis.Create();
-        string[] expected = ["jump", "lamp", "land", "splash", "step0", "step1", "step2", "stroke", "surface", "underwater"];
-        Check(clips.Select(c => c.Name).Order().SequenceEqual(expected), "unchanged effects and underwater ambience, without synthesized land music");
+        string[] expected = ["bump", "drink", "jump", "lamp", "land", "splash", "step0", "step1", "step2", "stroke", "surface", "underwater"];
+        Check(AudioDirector.BumpVolume == 1 && AudioDirector.DrinkVolume > 0, "louder flight bump and audible potion drink");
+        Check(clips.Select(c => c.Name).Order().SequenceEqual(expected), "flight bump, existing effects and underwater ambience");
         CheckBgmFiles();
         string directory = Path.Combine(SaveStore.DirectoryPath, "Audio");
         Directory.CreateDirectory(directory);
@@ -155,7 +156,7 @@ internal static class AudioChecks
         using var audio = new AudioDirector();
         Check(audio.Ready, "native audio device and all sound/music handles");
         var timer = System.Diagnostics.Stopwatch.StartNew();
-        string[] cues = ["step0", "step1", "step2", "jump", "land", "lamp", "stroke", "splash", "surface"];
+        string[] cues = ["step0", "step1", "step2", "jump", "land", "lamp", "stroke", "splash", "surface", "bump", "drink"];
         int cue = 0;
         bool collected = false, muted = false, unmuted = false, sought = false;
         while (timer.Elapsed.TotalSeconds < 34)
@@ -166,7 +167,8 @@ internal static class AudioChecks
             {
                 string name = cues[cue++];
                 float volume = name.StartsWith("step") ? AudioDirector.StepVolume : name == "jump" ? AudioDirector.JumpVolume
-                    : name == "land" ? .8f * AudioDirector.LandingScale : .6f;
+                    : name == "land" ? .8f * AudioDirector.LandingScale : name == "bump" ? AudioDirector.BumpVolume
+                    : name == "drink" ? AudioDirector.DrinkVolume : .6f;
                 audio.Play(name, volume);
             }
             if (t > 4 && !collected) { GC.Collect(); GC.WaitForPendingFinalizers(); collected = true; }
@@ -177,6 +179,6 @@ internal static class AudioChecks
         }
         Check(audio.LoopsPlaying && !audio.Muted, "all streams survive loop wrap, GC and mute toggle");
         Check(sought && audio.BgmWrappedForCheck(15), "both five-minute MP3s restart after their ends");
-        Console.WriteLine("AUDIO DEVICE PASS: day/night MP3s and unchanged underwater loop, all nine effects, actual MP3 end/restart after seeking, GC and mute.");
+        Console.WriteLine("AUDIO DEVICE PASS: day/night MP3s and underwater loop, all eleven effects including drinking and louder bump, MP3 end/restart, GC and mute.");
     }
 }

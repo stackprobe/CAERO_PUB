@@ -9,6 +9,7 @@ internal static class VariationChecks
     { if (!condition) throw new InvalidOperationException("Variation test failed: " + message); }
     public static void Run()
     {
+        WingSurfaces();
         var silhouettes = new HashSet<string>();
         for (int style = 0; style < WingCatalog.StyleCount; style++)
         {
@@ -44,5 +45,30 @@ internal static class VariationChecks
         Check(farReach > nearReach * 2 && farCount > nearCount * 3 && farPatches > nearPatches * 2,
             "distant populations have larger/combined wings and denser vegetation budgets");
         Console.WriteLine($"VARIATION: 20 wall finishes, 20 building modules, combinations, {abundance.Count} weed quantities and progressive distance intensity passed.");
+    }
+
+    internal static void WingSurfaces()
+    {
+        foreach (var (width, depth, height) in new[] { (18f, 12f, 12f), (6.1f, 6.3f, 6.2f), (33.7f, 19.8f, 18.4f) })
+            for (int style = 0; style < WingCatalog.StyleCount; style++)
+            {
+                var mesh = WingCatalog.Build(style, width, depth, height, Color.Gray, Color.White, Color.LightGray);
+                Check(mesh.CountCoplanarOverlaps() == 0, $"no overlapping wing surfaces: {WingCatalog.Names[style]}, {width}/{depth}/{height}");
+                Check(mesh.HasFiniteNormals, "clipped wing normals remain finite");
+                if (style is not (3 or 5)) continue;
+                var scene = new WalkableScene(); mesh.AddCollisionTo(scene);
+                foreach (float side in new[] { -1f, 1f })
+                    for (int step = 1; step < 20; step++)
+                    {
+                        float reach = style == 3 ? width * .7f : width;
+                        float top = style == 3 ? height * .7f : height;
+                        float z = side * depth * (style == 3 ? .33f : .32f);
+                        float half = depth * (style == 3 ? .125f : .15f);
+                        foreach (float dz in new[] { -half * .99f, 0, half * .99f })
+                            Check(Math.Abs(scene.FloorAt(reach * step / 20, z + dz, top + .02f) - top) < .002f,
+                                "finger/fork roof remains flat and supported across its entire width");
+                    }
+            }
+        Console.WriteLine("WING SURFACES: all 20 styles at three sizes, no coplanar overlaps and supported finger/fork roofs passed.");
     }
 }

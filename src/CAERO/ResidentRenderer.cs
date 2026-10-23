@@ -7,13 +7,18 @@ namespace Caero;
 internal sealed class ResidentRenderer : IDisposable
 {
     private Model skirt = Cloth(.33f, .20f, true), torso = Cloth(.21f, .28f), sleeve = Cloth(.115f, .145f);
+    private Model seatedSkirt = SeatedCloth();
+    private Model specialSkirt = Cloth(.33f, .20f, true, marked: true), specialSeatedSkirt = SeatedCloth(marked: true);
     private Model ball = Raylib.LoadModelFromMesh(Raylib.GenMeshSphere(1, 10, 12));
     private Model hair = Hair();
     private Matrix4x4 root;
     private Shader shader;
     private Color skin;
     private static readonly Color Robe = new(236, 234, 221, 255);
-    private static Model Cloth(float bottom, float top, bool dusty = false)
+    private static readonly Color HemThread = new(187, 199, 191, 255);
+    private static readonly float[] HemLevels = [0, .10f, .125f, .17f, .182f, 1];
+    private static bool HemBand(float y) => y is > .10f and < .125f or > .17f and < .182f;
+    private static Model Cloth(float bottom, float top, bool dusty = false, bool marked = false)
     {
         var g = new Geometry(); const int sides = 16;
         Vector3 P(int i, float y)
@@ -23,15 +28,51 @@ internal sealed class ResidentRenderer : IDisposable
             radius *= i % 2 == 0 ? 1.035f : .965f;
             return new(MathF.Sin(a) * radius, y, MathF.Cos(a) * radius * .8f);
         }
-        for (int ring = 0; ring < 3; ring++)
+        float[] levels = marked ? [0, .10f, .125f, .17f, .182f, 1 / 3f, 2 / 3f, 1] : [0, 1 / 3f, 2 / 3f, 1];
+        for (int ring = 0; ring < levels.Length - 1; ring++)
             for (int i = 0; i < sides; i++)
             {
-                float lo = ring / 3f, hi = (ring + 1) / 3f;
-                var tint = dusty && ring == 0 ? new Color(222, 219, 208, 255) : Color.White;
+                float lo = levels[ring], hi = levels[ring + 1];
+                var tint = marked && HemBand((lo + hi) / 2) ? HemThread
+                    : dusty && lo < 1 / 3f ? new Color(222, 219, 208, 255) : Color.White;
                 g.Quad(P(i, lo), P(i + 1, lo), P(i + 1, hi), P(i, hi), tint);
             }
         for (int i = 0; i < sides; i++)
             g.Triangle(new(0, 1, 0), P(i, 1), P(i + 1, 1), Color.White);
+        return g.UploadTiled();
+    }
+    private static Model SeatedCloth(bool marked = false)
+    {
+        var g = new Geometry(); const int sides = 24;
+        Vector3 P(int i, int ring)
+        {
+            float a = i * MathF.Tau / sides, front = (MathF.Cos(a) + 1) / 2;
+            float fold = i % 2 == 0 ? 1.025f : .975f;
+            return ring switch {
+                0 => new(MathF.Sin(a) * .40f * fold, .025f, .22f + MathF.Cos(a) * .49f * fold),
+                1 => new(MathF.Sin(a) * .32f * fold, .21f + .34f * front, .19f + MathF.Cos(a) * .36f * fold),
+                _ => new(MathF.Sin(a) * .20f, .27f, MathF.Cos(a) * .16f)
+            };
+        }
+        // A continuous drape over the raised knees, down to the toes and floor.
+        for (int r = 0; r < 2; r++)
+        {
+            float[] levels = marked && r == 0 ? HemLevels : [0, 1];
+            for (int band = 0; band < levels.Length - 1; band++)
+                for (int i = 0; i < sides; i++)
+                {
+                    float lo = levels[band], hi = levels[band + 1];
+                    Vector3 Along(int side, float t) => Vector3.Lerp(P(side, r), P(side, r + 1), t);
+                    var tint = marked && r == 0 && HemBand((lo + hi) / 2) ? HemThread
+                        : r == 0 ? new Color(222, 219, 208, 255) : Color.White;
+                    g.Quad(Along(i, lo), Along(i + 1, lo), Along(i + 1, hi), Along(i, hi), tint);
+                }
+        }
+        for (int i = 0; i < sides; i++)
+        {
+            g.Triangle(new(0, .27f, 0), P(i, 2), P(i + 1, 2), Color.White);
+            g.Triangle(new(0, .025f, .22f), P(i + 1, 0), P(i, 0), Color.White);
+        }
         return g.UploadTiled();
     }
     private static Model Hair()
@@ -72,31 +113,42 @@ internal sealed class ResidentRenderer : IDisposable
         float breath = MathF.Sin(t * 1.15f + person.Phase) * .008f;
         float stride = person.Pose == ResidentPose.Walking && !person.Talking ? MathF.Sin(t * 2.7f) * .12f : 0;
         root = Matrix4x4.CreateScale(person.Scale) * Matrix4x4.CreateRotationY(person.Yaw) * Matrix4x4.CreateTranslation(person.Position);
-        if (person.Pose == ResidentPose.Collapsed)
-            root = Matrix4x4.CreateRotationZ(-MathF.PI / 2) * Matrix4x4.CreateTranslation(-.75f, .33f, 0) * root;
         skin = (person.Profile % 3) switch { 0 => new(166, 143, 123, 255), 1 => new(198, 174, 151, 255), _ => new(183, 157, 134, 255) };
-        bool crouch = person.Pose == ResidentPose.Crouching;
-        Vector3 pelvis = new(0, crouch ? .29f : .78f, 0);
-        Vector3 shoulders = new(0, (crouch ? .69f : 1.25f) + breath, crouch ? .22f : .12f);
-        // Long, unadorned, opaque white cloth with a dusty hem and modest sleeves.
-        Vector3 hem = new(0, .065f, crouch ? .18f : 0);
-        Link(ref skirt, hem, pelvis, crouch ? 1.15f : person.Female ? 1.03f : 1, Robe);
+        bool sitting = person.Pose == ResidentPose.Sitting;
+        bool huddled = sitting && person.Huddled;
+        Vector3 pelvis = new(0, sitting ? .20f : .78f, 0);
+        Vector3 shoulders = new(0, (huddled ? .60f : sitting ? .69f : 1.25f) + breath, huddled ? .11f : sitting ? -.055f : .12f);
+        // Special residents share two muted woven bands near the hem. Integrating
+        // the thread into the cloth avoids floating trim or coplanar flicker.
+        Vector3 hem = new(0, .065f, sitting ? .18f : 0);
+        bool special = person.SpecialId != null;
+        if (sitting)
+        {
+            ref Model garment = ref (special ? ref specialSeatedSkirt : ref seatedSkirt);
+            Part(ref garment, Matrix4x4.Identity, Robe);
+        }
+        else
+        {
+            ref Model garment = ref (special ? ref specialSkirt : ref skirt);
+            Link(ref garment, hem, pelvis, person.Female ? 1.03f : 1, Robe);
+        }
         Link(ref torso, pelvis, shoulders, person.Female ? .9f : 1, Robe);
         Ball(pelvis + new Vector3(0, .025f, 0), new(.21f, .015f, .16f), new(184, 179, 160, 255));
         foreach (float side in new[] { -1f, 1f })
         {
-            Vector3 foot = new(side * .13f, .045f, (crouch ? .35f : stride * side) + .06f);
-            Ball(foot, new(.085f, .045f, .16f), skin);
+            Vector3 foot = new(side * .13f, .045f, (sitting ? .35f : stride * side) + .06f);
+            if (!sitting) Ball(foot, new(.085f, .045f, .16f), skin);
             Vector3 shoulder = shoulders + new Vector3(side * .245f, -.045f, 0);
-            Vector3 elbow = crouch ? new(side * .24f, .42f, .43f) : shoulder + new Vector3(side * .035f, -.27f, .08f - side * stride);
-            Vector3 hand = crouch ? new(side * .15f, .67f, .51f) : elbow + new Vector3(-side * .025f, -.24f, .04f);
+            Vector3 elbow = sitting ? new(side * .25f, huddled ? .42f : .45f, huddled ? .33f : .26f)
+                : shoulder + new Vector3(side * .035f, -.27f, .08f - side * stride);
+            Vector3 hand = sitting ? new(side * (huddled ? .13f : .15f), huddled ? .54f : .56f, .43f)
+                : elbow + new Vector3(-side * .025f, -.24f, .04f);
             Link(ref sleeve, elbow, shoulder, .95f, Robe);
             Link(ref sleeve, hand, elbow, .7f, Robe);
             Ball(hand, new(.055f, .085f, .045f), skin);
         }
-        Vector3 head = crouch ? new(0, .81f + breath, .43f) : new(0, 1.45f + breath, .20f);
-        if (person.Pose == ResidentPose.Collapsed) head.X += .14f;
-        float tilt = crouch ? .65f : person.Age == ResidentAge.Elder ? .5f : .33f;
+        Vector3 head = sitting ? new(0, (huddled ? .73f : .88f) + breath, huddled ? .32f : .14f) : new(0, 1.45f + breath, .20f);
+        float tilt = huddled ? .85f : sitting ? .40f : person.Age == ResidentAge.Elder ? .5f : .33f;
         var headRotation = Matrix4x4.CreateRotationX(tilt);
         Vector3 H(Vector3 p) => Vector3.Transform(p, headRotation) + head;
         Link(ref sleeve, shoulders, head - new Vector3(0, .13f, 0), .45f, Robe);
@@ -115,5 +167,9 @@ internal sealed class ResidentRenderer : IDisposable
         Ball(H(new(0, -.11f, .138f)), new(.037f, .008f, .009f), new(112, 91, 80, 255));
     }
     public void Dispose()
-    { Raylib.UnloadModel(skirt); Raylib.UnloadModel(torso); Raylib.UnloadModel(sleeve); Raylib.UnloadModel(ball); Raylib.UnloadModel(hair); }
+    {
+        Raylib.UnloadModel(skirt); Raylib.UnloadModel(seatedSkirt);
+        Raylib.UnloadModel(specialSkirt); Raylib.UnloadModel(specialSeatedSkirt);
+        Raylib.UnloadModel(torso); Raylib.UnloadModel(sleeve); Raylib.UnloadModel(ball); Raylib.UnloadModel(hair);
+    }
 }

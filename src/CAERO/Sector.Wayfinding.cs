@@ -8,19 +8,29 @@ internal sealed partial class Sector
 {
     internal BigInteger IslandNumber => SpiralNumber(X, Z);
     internal Vector3 CompassCenter { get; private set; }
+    private readonly List<float> skyCompassHeights = [];
+    internal IEnumerable<Vector3> SkyCompassCenters => skyCompassHeights.Select(y => Offset + new Vector3(0, y, 0));
     internal Vector3 NumberPlateCenter { get; private set; }
     internal Vector3 NumberPlateNormal => Rotate(numberPlateNormal);
     internal bool? NumberIsPrime => numberPrime?.Result;
     internal bool WayfindingDisposed { get; private set; }
     private IncrementalPrime? numberPrime;
+    internal List<DestinationPanel> DestinationPanels { get; } = [];
+    private readonly List<IncrementalPrime> destinationProofs = [];
+    private int proofCursor;
+    internal bool NumberWorkPending => NumberIsPrime == null || destinationProofs.Any(p => !p.Result.HasValue);
+    internal Vector4 DestinationPrimes => new(destinationProofs.ElementAtOrDefault(0)?.Result == true ? 1 : 0,
+        destinationProofs.ElementAtOrDefault(1)?.Result == true ? 1 : 0,
+        destinationProofs.ElementAtOrDefault(2)?.Result == true ? 1 : 0,
+        destinationProofs.ElementAtOrDefault(3)?.Result == true ? 1 : 0);
     private Vector3 numberPlateNormal;
     private Vector3 numberPlateClearMin, numberPlateClearMax;
     private Vector3 compassLocal;
 
-    // North is -Z. 1 at the origin, then east, north, west, south.
+    // North is -Z. Clockwise from 1 at the origin: east, south, west, north.
     internal static BigInteger SpiralNumber(long x, long z)
     {
-        BigInteger a = x, b = z, r = BigInteger.Max(BigInteger.Abs(a), BigInteger.Abs(b));
+        BigInteger a = x, b = -(BigInteger)z, r = BigInteger.Max(BigInteger.Abs(a), BigInteger.Abs(b));
         BigInteger last = (2 * r + 1) * (2 * r + 1);
         if (b == r) return last - (r - a);
         if (a == -r) return last - 2 * r - (r - b);
@@ -57,8 +67,26 @@ internal sealed partial class Sector
         if (!found) throw new InvalidOperationException($"No compass site on island {X},{Z}.");
         CompassCenter = Transform(compassLocal);
 
+        InlayCompass(compassLocal, [new(38, 52, 51, 253), new(205, 176, 108, 253), new(233, 222, 185, 253)]);
+        foreach (var junction in SkyPorts.GroupBy(p => p.Height))
+        {
+            // Only a complete four-way crossing at one elevation gets a dial.
+            if (junction.Select(p => (p.Dx, p.Dz)).Distinct().Count() != 4) continue;
+            Vector3 center = new(0, junction.Key, 0);
+            if (!PlacementSupport.HasFlatSupport(support, center, new(2.1f))) continue;
+            if (support.SurfaceOverlapsBox(center + new Vector3(-2.1f, .02f, -2.1f),
+                center + new Vector3(2.1f, 2.2f, 2.1f))) continue;
+            InlayCompass(center, [new(43, 54, 65, 253), new(153, 177, 194, 253), new(218, 229, 235, 253)]);
+            skyCompassHeights.Add(junction.Key);
+        }
+
+        BuildNumberSign(support);
+        BuildDestinationPanels();
+    }
+
+    private void InlayCompass(Vector3 center, Color[] palette)
+    {
         // Each pixel is part of the actual surface, with no raised or coplanar overlay.
-        Color dark = new(38, 52, 51, 253), brass = new(205, 176, 108, 253), light = new(233, 222, 185, 253);
         const int size = 65;
         int[,] dial = new int[size, size];
         for (int y = 0; y < size; y++)
@@ -72,9 +100,32 @@ internal sealed partial class Sector
             }
         Stamp(dial, "N", 30, 4, 2); Stamp(dial, "S", 30, 54, 1);
         Stamp(dial, "W", 5, 29, 1); Stamp(dial, "E", 55, 29, 1);
-        InlayPixels(dial, .0625f, (u, v) => compassLocal + Unrotate(new(u, 0, -v)), [dark, brass, light]);
+        InlayPixels(dial, .0625f, (u, v) => center + Unrotate(new(u, 0, -v)), palette);
+    }
 
-        BuildNumberSign(support);
+    private void BuildDestinationPanels()
+    {
+        var footprints = new Geometry(); var surfaces = new Geometry();
+        foreach (var (dx, dz) in new[] { (1, 0), (0, 1), (-1, 0), (0, -1) })
+        {
+            Int128 x = (Int128)X + dx, z = (Int128)Z + dz;
+            // There is no address beyond the signed 64-bit world boundary.
+            if (x < long.MinValue || x > long.MaxValue || z < long.MinValue || z > long.MaxValue) continue;
+            Vector3 forward = new(dx, 0, dz);
+            BigInteger number = SpiralNumber((long)x, (long)z);
+            byte tag = (byte)(246 + destinationProofs.Count);
+            destinationProofs.Add(new(number));
+            foreach (float height in SkyPorts.Where(p => p.Dx == dx && p.Dz == dz).Select(p => p.Height).Prepend(0))
+            {
+                var panel = new DestinationPanel(number, Unrotate(forward * 42 + Vector3.UnitY * height), Unrotate(forward), tag,
+                    maxWidth: height == 0 ? 3.6f : 2.4f, maxHeight: height == 0 ? 3.6f : 6,
+                    singleLineDigits: height == 0 ? 0 : 7);
+                DestinationPanels.Add(panel);
+                footprints.Append(panel.Footprint); surfaces.Append(panel.Surface);
+            }
+        }
+        // Cut all four destinations in one mesh pass, including on tall islands.
+        ApplyWayfindingInlay(footprints, surfaces);
     }
 
     private void BuildNumberSign(WalkableScene support)
@@ -147,15 +198,22 @@ internal sealed partial class Sector
 
     internal void StepNumberPrime()
     {
-        numberPrime?.Step();
-        if (NumberIsPrime.HasValue)
-            foreach (var chunk in Chunks) chunk.PrimeNumber = NumberIsPrime == true;
+        // Exactly one arithmetic unit per call, sharing World's existing budget.
+        for (int i = 0; i <= destinationProofs.Count; i++)
+        {
+            int index = proofCursor;
+            proofCursor = (index + 1) % (destinationProofs.Count + 1);
+            var proof = index == 0 ? numberPrime : destinationProofs[index - 1];
+            if (proof?.Result == null) { proof?.Step(); break; }
+        }
+        foreach (var chunk in Chunks)
+        { chunk.PrimeNumber = NumberIsPrime == true; chunk.DestinationPrimes = DestinationPrimes; }
     }
 
     private void DisposeWayfinding()
-    { WayfindingDisposed = true; numberPrime?.Dispose(); }
+    { WayfindingDisposed = true; numberPrime?.Dispose(); foreach (var proof in destinationProofs) proof.Dispose(); }
 
-    private void InlayPixels(int[,] pixels, float cell, Func<float, float, Vector3> point, Color[] palette)
+    private void InlayPixels(int[,] pixels, float cell, Func<float, float, Vector3> point, Color[] palette, Geometry? target = null)
     {
         int width = pixels.GetLength(0), height = pixels.GetLength(1);
         var footprint = new Geometry(); var surface = new Geometry();
@@ -173,6 +231,12 @@ internal sealed partial class Sector
                 while (x < width && pixels[x, y] == shade) x++;
                 Rect(surface, start, y, x, y + 1, palette[shade]);
             }
+        if (target == null) ApplyWayfindingInlay(footprint, surface);
+        else target.Inlay(footprint, surface);
+    }
+
+    private void ApplyWayfindingInlay(Geometry footprint, Geometry surface)
+    {
         int[] remap = Stone.Inlay(footprint, surface);
         int Map(int index) => remap[index / 3];
         // Surface audits retain the original tower ranges after floor/wall clipping.

@@ -15,12 +15,18 @@ internal sealed class Explorer
     public bool Swimming { get; private set; }
     public bool Grounded { get; private set; }
     public bool Jumped { get; private set; }
+    public bool FlightBumped { get; private set; }
     public float LandingImpact { get; private set; }
     public float SplashImpact { get; private set; }
     public bool Surfaced { get; private set; }
     private bool? headUnderwater;
     public bool Captured { get; private set; } = true;
+    internal void SetCaptured(bool captured)
+    { Captured = captured; if (captured) Raylib.DisableCursor(); else Raylib.EnableCursor(); }
     private float verticalSpeed;
+    private bool jumping, potionDrunk;
+    internal void DrinkPotion() => potionDrunk = true;
+    internal bool ConsumePotionDrink() { bool result = potionDrunk; potionDrunk = false; return result; }
     public Vector3 Forward => new(MathF.Sin(Yaw) * MathF.Cos(Pitch), MathF.Sin(Pitch), -MathF.Cos(Yaw) * MathF.Cos(Pitch));
     public Camera3D Camera => new() { Position = Position, Target = Position + Forward,
         Up = Vector3.UnitY, FovY = 62, Projection = CameraProjection.Perspective };
@@ -29,14 +35,14 @@ internal sealed class Explorer
     {
         Position = new(view.X, view.Y, view.Z); Yaw = view.Yaw;
         Pitch = Math.Clamp(view.Pitch, -1.48f, 1.48f); Flying = view.Flying;
-        verticalSpeed = 0; Swimming = false; ResetAudioEvents(); headUnderwater = null; Grounded = false;
+        verticalSpeed = 0; jumping = false; Swimming = false; ResetAudioEvents(); headUnderwater = null; Grounded = false;
     }
     public void GoTo(Viewpoint view)
     {
         Position = view.Position;
         Vector3 direction = Vector3.Normalize(view.Target - Position);
         Yaw = MathF.Atan2(direction.X, -direction.Z); Pitch = MathF.Asin(direction.Y);
-        Flying = false; verticalSpeed = 0; Swimming = false; ResetAudioEvents(); headUnderwater = null; Grounded = false;
+        Flying = false; verticalSpeed = 0; jumping = false; Swimming = false; ResetAudioEvents(); headUnderwater = null; Grounded = false;
     }
     public void Update(float dt, World world)
     {
@@ -45,7 +51,6 @@ internal sealed class Explorer
         { Captured = !Captured; if (Captured) Raylib.DisableCursor(); else Raylib.EnableCursor(); }
         if (!Captured && Raylib.IsMouseButtonPressed(MouseButton.Left))
         { Captured = true; Raylib.DisableCursor(); }
-        if (Raylib.IsKeyPressed(KeyboardKey.F)) { Flying = !Flying; verticalSpeed = 0; }
         if (!Captured || !Raylib.IsWindowFocused()) return;
         var delta = Raylib.GetMouseDelta();
         Yaw += delta.X * 0.0022f; Pitch = Math.Clamp(Pitch - delta.Y * 0.0022f, -1.48f, 1.48f);
@@ -57,35 +62,48 @@ internal sealed class Explorer
         if (Raylib.IsKeyDown(KeyboardKey.S)) move -= forward;
         if (Raylib.IsKeyDown(KeyboardKey.D)) move += right;
         if (Raylib.IsKeyDown(KeyboardKey.A)) move -= right;
-        if (Flying)
-        {
-            if (Raylib.IsKeyDown(KeyboardKey.Space)) move += Vector3.UnitY;
-            if (Raylib.IsKeyDown(KeyboardKey.C)) move -= Vector3.UnitY;
-        }
         if (move.LengthSquared() > 0) move = Vector3.Normalize(move);
-        Advance(dt, world, move, Raylib.IsKeyDown(KeyboardKey.Space), Raylib.IsKeyPressed(KeyboardKey.Space),
-            Raylib.IsKeyDown(KeyboardKey.C), Raylib.IsKeyDown(KeyboardKey.LeftShift) || Raylib.IsKeyDown(KeyboardKey.RightShift),
-            Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl));
+        AdvanceControls(dt, world, move, Raylib.IsKeyDown(KeyboardKey.Space), Raylib.IsKeyPressed(KeyboardKey.Space),
+            false, Raylib.IsKeyDown(KeyboardKey.LeftShift) || Raylib.IsKeyDown(KeyboardKey.RightShift),
+            Raylib.IsKeyPressed(KeyboardKey.F));
+    }
+
+    internal bool ToggleFlight(World world)
+    {
+        if (Flying) { Flying = false; verticalSpeed = 0; return true; }
+        // Walking off an edge, swimming and standing still are not jumps.
+        if (!world.Progress.CanFly || !jumping || Grounded || Swimming) return false;
+        Flying = true; jumping = false; verticalSpeed = 0; return true;
+    }
+    internal void AdvanceControls(float dt, World world, Vector3 move, bool rise, bool jump, bool descend, bool fast, bool flightPressed)
+    {
+        if (flightPressed) ToggleFlight(world);
+        // Mouse look steers flight. Movement keys cannot stop or reverse it.
+        Advance(dt, world, Flying ? Forward : move, rise, jump, descend, fast);
     }
 
     // Input-independent simulation is also used by the movement regression checks.
-    public void Advance(float dt, World world, Vector3 move, bool rise, bool jump, bool descend, bool fast, bool turbo = false)
+    public void Advance(float dt, World world, Vector3 move, bool rise, bool jump, bool descend, bool fast)
     {
         ResetAudioEvents();
         if (dt <= 0) return;
         if (move.LengthSquared() > 1) move = Vector3.Normalize(move);
-        float speed = turbo ? 50 : fast ? 13 : 5;
-        float swimSpeed = turbo ? 40 : fast ? 9 : 4;
+        float speed = fast ? 13 + world.Progress.DashBonus : 5;
+        float swimSpeed = fast ? 9 + world.Progress.DashBonus : 4;
         if (Flying)
         {
-            Swimming = false; Grounded = false; headUnderwater = null; Position += move * speed * dt;
-            world.Recenter(this);
-            return;
+            dt = AdvanceFlight(dt, world, move * speed);
+            if (Flying || dt <= 0)
+            {
+                world.Recenter(this);
+                return;
+            }
         }
         TrackSurface();
         // Bound both horizontal and vertical travel, including long falls.
         float maximumSpeed = Math.Max(speed, Math.Abs(verticalSpeed) + Gravity * dt);
-        if (jump) maximumSpeed = Math.Max(maximumSpeed, JumpSpeed);
+        float jumpSpeed = JumpSpeed * world.Progress.JumpMultiplier;
+        if (jump) maximumSpeed = Math.Max(maximumSpeed, jumpSpeed);
         int steps = Math.Max(1, (int)MathF.Ceiling(maximumSpeed * dt / .10f));
         for (int i = 0; i < steps; i++)
         {
@@ -100,13 +118,12 @@ internal sealed class Explorer
                 // Keep impact momentum on entry. Drag gradually brings vertical motion
                 // toward buoyancy or swimming input instead of cancelling the fall.
                 float buoyancy = Math.Clamp((World.WaterLevel + .6f - Position.Y) * 2, -2, 2);
-                float verticalSwimSpeed = turbo ? 50 : 5;
-                float targetSpeed = rise ? verticalSwimSpeed : descend ? -verticalSwimSpeed : move.Y * swimSpeed + buoyancy;
+                float targetSpeed = rise ? 5 : descend ? -5 : move.Y * swimSpeed + buoyancy;
                 verticalSpeed = targetSpeed + (verticalSpeed - targetSpeed) * MathF.Exp(-WaterDrag * step);
             }
             else
             {
-                if (grounded && jump && i == 0) { verticalSpeed = JumpSpeed; Jumped = true; }
+                if (grounded && jump && i == 0) { verticalSpeed = jumpSpeed; Jumped = true; jumping = true; }
                 verticalSpeed = Math.Max(-35, verticalSpeed - Gravity * step);
             }
             float travel = (Swimming ? swimSpeed : speed) * step;
@@ -120,7 +137,7 @@ internal sealed class Explorer
             if (verticalSpeed <= 0 && Position.Y - EyeHeight <= floor)
             {
                 if (!Swimming && verticalSpeed < -2) LandingImpact = Math.Max(LandingImpact, -verticalSpeed);
-                Position.Y = floor + EyeHeight; verticalSpeed = 0;
+                Position.Y = floor + EyeHeight; verticalSpeed = 0; jumping = false;
             }
             TrackSurface();
             if (Position.Y < World.SeaFloor - 10)
@@ -132,8 +149,42 @@ internal sealed class Explorer
         world.Recenter(this);
     }
 
+    private float AdvanceFlight(float dt, World world, Vector3 velocity)
+    {
+        Swimming = false; Grounded = false; headUnderwater = null;
+        int steps = Math.Max(1, (int)MathF.Ceiling(velocity.Length() * dt / .1f));
+        float step = dt / steps;
+        Vector3 direction = velocity.LengthSquared() > 0 ? Vector3.Normalize(velocity) : Vector3.Zero;
+        const float clearance = .25f;
+        float waterEntry = World.WaterLevel + EyeHeight - .25f;
+        for (int i = 0; i < steps; i++)
+        {
+            Vector3 next = Position + velocity * step;
+            Vector3 probe = next + direction * clearance;
+            float floor = world.SupportBelow(probe.X, probe.Z, Position.Y - EyeHeight + clearance);
+            if (world.Blocked(probe) || probe.Y - EyeHeight < floor
+                || probe.Y > world.CeilingAbove(Position) - .02f)
+            {
+                Flying = false; verticalSpeed = 0; FlightBumped = true;
+                return 0;
+            }
+            if (velocity.Y < 0 && Position.Y >= waterEntry && next.Y < waterEntry)
+            {
+                float fraction = (Position.Y - waterEntry) / (Position.Y - next.Y);
+                Position = Vector3.Lerp(Position, next, fraction);
+                Flying = false; verticalSpeed = velocity.Y;
+                // Start the existing water physics with the actual flight impact speed.
+                Position.Y = waterEntry - .0001f;
+                TrackSurface(); UpdateSwimming();
+                return dt - step * (i + fraction);
+            }
+            Position = next;
+        }
+        return 0;
+    }
+
     internal void ClearMotionEvents() => ResetAudioEvents();
-    private void ResetAudioEvents() { SplashImpact = 0; Surfaced = false; Jumped = false; LandingImpact = 0; }
+    private void ResetAudioEvents() { SplashImpact = 0; Surfaced = false; Jumped = false; FlightBumped = false; LandingImpact = 0; }
     private void TrackSurface()
     {
         // Hysteresis prevents repeated exit sounds while bobbing at the waterline.
@@ -147,6 +198,7 @@ internal sealed class Explorer
         bool next = Position.Y - EyeHeight < World.WaterLevel - .25f;
         if (next && !Swimming && verticalSpeed < -1) SplashImpact = Math.Max(SplashImpact, -verticalSpeed);
         Swimming = next;
+        if (next) jumping = false;
     }
 
     private void MoveHorizontal(World world, Vector3 delta, bool canStep)

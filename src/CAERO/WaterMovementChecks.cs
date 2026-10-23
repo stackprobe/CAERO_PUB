@@ -24,7 +24,7 @@ internal static class WaterMovementChecks
         Check(swimmer.Position.Y > start + 3, "passive buoyancy continues returning the swimmer");
         Advance(swimmer, world, 3, descend: true);
         float dived = swimmer.Position.Y;
-        Check(dived < start, "Ctrl still dives against buoyancy");
+        Check(dived < start, "C dives against buoyancy");
         Advance(swimmer, world, 3, rise: true);
         Check(swimmer.Position.Y > dived + 5, "Space still swims upward");
 

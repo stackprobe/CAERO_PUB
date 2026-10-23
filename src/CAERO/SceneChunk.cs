@@ -15,7 +15,11 @@ internal sealed class SceneChunk : IDisposable
     public SurfaceSet Surface;
     public Vector3 WallFinish;
     public float WallStrength;
+    public bool SmoothMaterial;
+    public bool ExitRelic;
+    public bool Inscription;
     public bool PrimeNumber;
+    public Vector4 DestinationPrimes;
     public int DetailedTriangles;
     public float SortDistanceSquared;
     public float DistanceSquared(Vector3 eye) => Vector3.DistanceSquared(eye, Vector3.Clamp(eye, Min, Max));

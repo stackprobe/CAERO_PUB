@@ -180,6 +180,7 @@ internal sealed partial class Sector
     }
     private void BuildFloatingCourt(Xor128 chaos)
     {
+        int first = Stone.VertexCount;
         float y = HighRoof;
         // An intentionally suspended court connected to the accessible tower roof.
         // Split the elbow into disjoint slabs to avoid coplanar floor overlaps.
@@ -188,6 +189,7 @@ internal sealed partial class Sector
         Deck(-20.5f, 48, -51.5f, -48.5f, y);
         Deck(48, 72, -62, -38, y, 2);
         int floors = 1 + chaos.Next(ChaosTier - 1);
+        FloatingCourtFloors = floors;
         for (int level = 0; level < floors; level++)
         {
             float bottom = y + level * 12;
@@ -198,8 +200,61 @@ internal sealed partial class Sector
             if (level % 2 == 0) Box(new(71, bottom + 8, -50), new(1, 5, 20));
         }
         FloatingStructureCount++;
-        Route("floating court", new(-22, y, 12), new(-22, y, -50), new(55, y, -50));
+        Route("floating court", new(-22, y, 12), new(-22, y, -50), new(50, y, -50));
+        // The passage joins the local west face. Rotate the entire staircase
+        // onto another face without consuming construction or warp randomness.
+        FloatingCourtStairTurns = 1 + new Xor128(SeedAt(worldSeed ^ 0x53544149, X, Z)).Next(3);
+        CourtStairDeck(34.5f, 48, -61, -58, y);
+        for (int level = 0; level <= floors; level++)
+        {
+            float bottom = y + level * 12;
+            // Perimeter circulation avoids the warp machines and links each
+            // landing to the existing tower/warp-room approach, including roof.
+            Vector3[] access = FloatingCourtStairTurns switch
+            {
+                1 => [new(50, bottom, -59.5f), new(69.5f, bottom, -59.5f), new(69.5f, bottom, -58)],
+                2 => [new(50, bottom, -59.5f), new(69.5f, bottom, -59.5f), new(69.5f, bottom, -40.5f), new(68, bottom, -40.5f)],
+                _ => [new(50, bottom, -59.5f), new(50.5f, bottom, -59.5f), new(50.5f, bottom, -42)]
+            };
+            Route("floating court landing access", access);
+            if (level == 0)
+                Route("floating court tower access", new(50, y, -50), access[0]);
+            if (level == floors) break;
+            Stair(CourtStairPoint(new(42, bottom, -58)), CourtStairPoint(new(42, bottom + 6, -42)), 3);
+            CourtStairDeck(34.5f, 43.5f, -42, -39, bottom + 6);
+            Stair(CourtStairPoint(new(36, bottom + 6, -42)), CourtStairPoint(new(36, bottom + 12, -58)), 3);
+            CourtStairDeck(34.5f, 48, -61, -58, bottom + 12);
+            CourtStairBox(new(39, bottom + 6.5f, -39.1f), new(9, 1, .2f));
+            CourtStairBox(new(41.25f, bottom + 12.5f, -60.9f), new(13.5f, 1, .2f));
+            Route("floating court exterior stairs", new Vector3[] {
+                new(52, bottom, -59.5f), new(42, bottom, -59.5f), new(42, bottom, -58),
+                new(42, bottom + 6, -40.5f), new(36, bottom + 6, -40.5f),
+                new(36, bottom + 12, -59.5f), new(52, bottom + 12, -59.5f)
+            }.Select(CourtStairPoint).ToArray());
+        }
+        Stone.RemoveCoplanarOverlaps(first);
     }
+    internal int FloatingCourtStairTurns { get; private set; }
+    // Quarter turns about the court center, before the island's own rotation.
+    internal Vector3 CourtStairPoint(Vector3 point)
+    {
+        Vector3 p = point - new Vector3(60, 0, -50);
+        return new Vector3(60, 0, -50) + (FloatingCourtStairTurns switch
+        {
+            1 => new Vector3(-p.Z, p.Y, p.X),
+            2 => new Vector3(-p.X, p.Y, -p.Z),
+            3 => new Vector3(p.Z, p.Y, -p.X),
+            _ => p
+        });
+    }
+    private void CourtStairDeck(float x0, float x1, float z0, float z1, float y)
+    {
+        Vector3 a = CourtStairPoint(new(x0, y, z0)), b = CourtStairPoint(new(x1, y, z1));
+        Deck(Math.Min(a.X, b.X), Math.Max(a.X, b.X), Math.Min(a.Z, b.Z), Math.Max(a.Z, b.Z), y);
+    }
+    private void CourtStairBox(Vector3 center, Vector3 size)
+        => Box(CourtStairPoint(center), FloatingCourtStairTurns % 2 == 0 ? size : new(size.Z, size.Y, size.X), pale);
+
     private void BuildSuspendedFragments(Xor128 chaos)
     {
         for (int i = 0; i < ChaosTier * 2; i++)

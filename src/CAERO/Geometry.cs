@@ -331,6 +331,7 @@ internal sealed class Geometry
         { positions[i] = rotate(positions[i]) + offset; normals[i] = rotate(normals[i]); }
     }
     public Model UploadTiled() => UploadMesh(new Vector2[positions.Count]);
+    internal Model UploadMapped(Func<Vector3, Vector2> coordinates) => UploadMesh(positions.Select(coordinates).ToArray());
     private unsafe Model UploadMesh(IReadOnlyList<Vector2> coordinates)
     {
         int count = positions.Count;
