@@ -192,6 +192,7 @@ internal sealed partial class Sector : IDisposable
     }
     private void BuildHall()
     {
+        int first = Stone.VertexCount;
         float h = HallHeight, end = -8 - h / .3f * .5f;
         // The center aisle remains open through both facades to the north bridge.
         foreach (float x in new[] { -30f, -20, -10, 10, 20, 30 })
@@ -220,6 +221,10 @@ internal sealed partial class Sector : IDisposable
         foreach (float x in new[] { -29.6f, 29.6f }) Box(new(x, h + .5f, -22), new(.5f, 1, 27), pale);
         Box(new(-5, h + .5f, -8.3f), new(49, 1, .5f), pale);
         Box(new(0, h + .5f, -35.7f), new(59, 1, .5f), pale);
+        // Columns reach roof level and partly intersect the slabs along the rim.
+        // Let the later roof slabs own the shared surface, retaining exposed caps
+        // outside their footprint and the opening at the top of the stairs.
+        Stone.RemoveCoplanarOverlaps(first);
         Lamp(new(-23, 0, -20)); Lamp(new(-24, h, -28));
         Route("hall approach", Vector3.Zero, new(16, 0, 0), new(23, 0, 0), new(23, 0, -7.3f));
         Route("hall stair and roof", new(23, 0, -7.3f), new(23, h, end - .7f), new(18, h, end - .7f), new(-20, h, -20));

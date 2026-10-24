@@ -1,5 +1,19 @@
 ﻿# Application icon
 
+## raylib startup credit
+
+`raylib-logo.png` is the unmodified official 256×256 logo from
+https://github.com/raysan5/raylib/blob/master/logo/raylib_256x256.png
+(downloaded 2026-10-24). It is embedded as `CAERO.RaylibLogo.png` and displayed
+centered, in its original square proportions, on black during startup. Only the
+display opacity changes. The original lowercase wordmark and colors are preserved.
+A small white "Powered by" caption sits above the logo and shares its fade opacity.
+The upstream license is included in `doc/raylib-LICENSE.txt` and is copied into
+the release package by the existing release process. raylib does not mandate a
+splash layout; this uses the official artwork with the game's requested timing.
+
+## CAERO application icon
+
 - `caero-icon-source.png`: original transparent artwork generated with the built-in imagegen tool.
 - `caero-icon.png`: 256px image embedded for the runtime window/taskbar icon.
 - `caero.ico`: 16, 24, 32, 48, 64, 128 and 256px images embedded in the Windows executable.

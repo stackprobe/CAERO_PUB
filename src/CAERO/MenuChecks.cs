@@ -9,6 +9,7 @@ internal static class MenuChecks
     { if (!value) throw new InvalidOperationException("Menu/save check failed: " + message); }
     internal static void Run()
     {
+        StartupChecks.Run();
         CheckTransitions();
         ConversationInputChecks.Run();
         Check(!ConversationUi.SwallowedMessageVisible(ConversationUi.SwallowedDuration - .5f)
@@ -131,6 +132,15 @@ internal static class MenuChecks
             Shot("title-no-save", () => menus.Draw(flow, false));
             Shot("title-new-game-warning", () => menus.Draw(flow, true));
             flow.ToTitle(true); Shot("title-continue", () => menus.Draw(flow, true));
+            menus.Cleared = true;
+            Shot("title-cleared", () => menus.Draw(flow, true));
+            Shot("title-cleared-hover", () =>
+            {
+                menus.Draw(flow, true);
+                Rectangle trophy = GameMenus.ClearAchievementBounds(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+                menus.DrawClearAchievement(new(trophy.X + trophy.Width / 2, trophy.Y + trophy.Height / 2));
+            });
+            menus.Cleared = false;
             var transition = new ScreenTransition(); transition.Begin(MenuAction.Continue); transition.Update(.5f);
             Shot("transition-title-out", () => { menus.Draw(flow, true); transition.Draw(text); });
             transition.Update(.5f);
@@ -244,6 +254,14 @@ internal static class MenuChecks
             }
             Raylib.SetWindowSize(640, 360); flow.ToTitle(true);
             Shot("title-small", () => menus.Draw(flow, true));
+            menus.Cleared = true;
+            Shot("title-cleared-hover-small", () =>
+            {
+                menus.Draw(flow, true);
+                Rectangle trophy = GameMenus.ClearAchievementBounds(Raylib.GetScreenWidth(), Raylib.GetScreenHeight());
+                menus.DrawClearAchievement(new(trophy.X + trophy.Width / 2, trophy.Y + trophy.Height / 2));
+            });
+            menus.Cleared = false;
             flow.Select(0, true); Shot("title-small-warning", () => menus.Draw(flow, true));
             flow.Start(); flow.Pause(); flow.ShowControls(); Shot("controls-small", () => menus.Draw(flow, true));
             var dialogue = new Conversation();

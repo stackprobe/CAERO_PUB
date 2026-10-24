@@ -16,6 +16,7 @@ internal sealed class ConversationUi : IDisposable
         int[] glyphs = Enumerable.Range(32, 95).Concat(Dialogue.FontCharacters.Select(c => (int)c))
             .Concat(SpecialContent.FontCharacters.Select(c => (int)c))
             .Concat(GameMenus.Characters.Select(c => (int)c))
+            .Concat(GameMenus.ClearAchievementText.Select(c => (int)c))
             .Concat((EndingSequence.Message + "タイトルに戻る").Select(c => (int)c))
             .Concat(WarpTravel.UiCharacters.Select(c => (int)c)).Distinct().Order().ToArray();
         font = Raylib.LoadFontFromMemory(".ttf", FontFace(File.ReadAllBytes(path)), 40, glyphs, glyphs.Length);
@@ -71,10 +72,13 @@ internal sealed class ConversationUi : IDisposable
         {
             if (target == null) return;
             float size = Math.Clamp(w / 48f, 16, 23);
-            string prompt = "[E] 話しかける　" + target.Name;
-            float width = Raylib.MeasureTextEx(font, prompt, size, 1).X;
+            const string prompt = "[E] 話しかける";
+            // Blank full-width glyphs can have zero advance in the loaded font.
+            float nameOffset = TextWidth(prompt, size) + size + 1;
+            float width = nameOffset + TextWidth(target.Name, size);
             Raylib.DrawRectangle((int)((w - width) / 2 - 18), h - 180, (int)width + 36, 42, new Color(12, 19, 23, 220));
             Text(prompt, (w - width) / 2, h - 172, size, ink);
+            Text(target.Name, (w - width) / 2 + nameOffset, h - 172, size, ink);
             return;
         }
         float padding = w < 800 ? 22 : 48, panelWidth = w - padding * 2;
@@ -111,11 +115,14 @@ internal sealed class ConversationUi : IDisposable
     {
         if (target == null) return;
         string verb = target.Definition.Kind == SpecialKind.Item ? "取得する" : "調べる";
-        string prompt = "[E] " + verb + "　" + target.Definition.Name;
+        string prompt = "[E] " + verb;
         int w = Raylib.GetScreenWidth(), h = Raylib.GetScreenHeight();
-        float size = Math.Clamp(w / 48f, 16, 23), width = Raylib.MeasureTextEx(font, prompt, size, 1).X;
+        float size = Math.Clamp(w / 48f, 16, 23);
+        float nameOffset = TextWidth(prompt, size) + size + 1;
+        float width = nameOffset + TextWidth(target.Definition.Name, size);
         Raylib.DrawRectangle((int)((w - width) / 2 - 18), h - 180, (int)width + 36, 42, new Color(12, 19, 23, 230));
         Text(prompt, (w - width) / 2, h - 172, size, target.Definition.Tint);
+        Text(target.Definition.Name, (w - width) / 2 + nameOffset, h - 172, size, target.Definition.Tint);
     }
     private static Rectangle EndingButton()
     {
@@ -159,12 +166,14 @@ internal sealed class ConversationUi : IDisposable
     public void DrawWarp(WarpTarget? target)
     {
         if (target == null) return;
-        var terminal = target.Terminal;
-        string prompt = $"[E] 調べる　{terminal.Direction} {terminal.Distance}島";
+        const string prompt = "[E] 調べる", name = "ワープ装置";
         int w = Raylib.GetScreenWidth(), h = Raylib.GetScreenHeight();
-        float size = Math.Clamp(w / 48f, 16, 23), width = Raylib.MeasureTextEx(font, prompt, size, 1).X;
+        float size = Math.Clamp(w / 48f, 16, 23);
+        float nameOffset = TextWidth(prompt, size) + size + 1;
+        float width = nameOffset + TextWidth(name, size);
         Raylib.DrawRectangle((int)((w - width) / 2 - 18), h - 180, (int)width + 36, 42, new Color(12, 25, 32, 230));
         Text(prompt, (w - width) / 2, h - 172, size, new Color(191, 222, 231, 255));
+        Text(name, (w - width) / 2 + nameOffset, h - 172, size, new Color(191, 222, 231, 255));
     }
     internal const float SwallowedBlackDuration = 1, SwallowedMessageDuration = 3, SwallowedFadeDuration = 1.2f;
     internal const float SwallowedDuration = SwallowedBlackDuration + SwallowedMessageDuration + SwallowedFadeDuration;

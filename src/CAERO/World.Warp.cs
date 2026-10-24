@@ -17,6 +17,8 @@ internal sealed partial class World
     private WarpTransition? warp;
     private readonly List<Task<Sector>> abandonedGenerations = [];
     private string? warpFailure;
+    private bool warpStarted;
+    internal bool ConsumeWarpStart() { bool result = warpStarted; warpStarted = false; return result; }
     internal bool WarpInProgress => warp != null;
     internal bool WarpFalling => warp is { Arrived: true, Recovery: >= 0 };
     internal float WarpTime => (float)(warp?.Elapsed ?? 0);
@@ -39,6 +41,7 @@ internal sealed partial class World
                 if (previous != null) (await previous.ConfigureAwait(false)).Dispose();
                 return generate != null ? generate() : Sector.Generate(Seed, x, z);
             }) };
+        warpStarted = true;
         return true;
     }
 
@@ -90,6 +93,7 @@ internal sealed partial class World
 
     private void CancelWarp()
     {
+        warpStarted = false;
         if (warp?.Generation is { } task) abandonedGenerations.Add(task);
         warp = null;
     }

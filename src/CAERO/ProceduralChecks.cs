@@ -12,6 +12,7 @@ internal static class ProceduralChecks
         var timer = Stopwatch.StartNew();
         SeedChecks.Run();
         BuildingChecks.Run();
+        HallRoofChecks.Run();
         FloatingOriginChecks.Run();
         SurfaceChecks.Run();
         DayNightChecks.Run();

@@ -10,10 +10,12 @@ internal static class AudioChecks
     public static void Run(bool device)
     {
         var clips = AudioSynthesis.Create();
-        string[] expected = ["bump", "drink", "jump", "lamp", "land", "splash", "step0", "step1", "step2", "stroke", "surface", "underwater"];
+        string[] expected = ["bump", "drink", "flight-start", "jump", "lamp", "land", "splash", "step0", "step1", "step2", "stroke", "surface", "underwater", "warp"];
         Check(AudioDirector.BumpVolume == 1 && AudioDirector.DrinkVolume > 0, "louder flight bump and audible potion drink");
         Check(clips.Select(c => c.Name).Order().SequenceEqual(expected), "flight bump, existing effects and underwater ambience");
         CheckBgmFiles();
+        Check(AudioMix.TitleScreen.Title > 0 && AudioMix.TitleScreen.Day == 0 && AudioMix.TitleScreen.Night == 0
+            && AudioMix.TitleScreen.Underwater == 0 && AudioMix.At(2).Title == 0, "title and gameplay mixes stay separate");
         string directory = Path.Combine(SaveStore.DirectoryPath, "Audio");
         Directory.CreateDirectory(directory);
         foreach (var clip in clips)
@@ -94,6 +96,7 @@ internal static class AudioChecks
     }
     private static unsafe void CheckBgmFiles()
     {
+        double gameplayRms = double.MaxValue;
         foreach (string name in BgmAssets.Names)
         {
             string path = BgmAssets.PathFor(name);
@@ -120,6 +123,8 @@ internal static class AudioChecks
                 }
                 Check(edgePeak < .00001f, name + " first/last second stays silent after MP3 decoding");
                 Check(peak < .75f && Math.Sqrt(sum / count) > .02, name + " audible with headroom");
+                if (name == "title") Check(Math.Sqrt(sum / count) < gameplayRms * .75, "title music is quieter than both gameplay scores");
+                else gameplayRms = Math.Min(gameplayRms, Math.Sqrt(sum / count));
                 Console.WriteLine($"MP3: {name}, {duration:F3}s, peak {peak:F3}, RMS {Math.Sqrt(sum / count):F3}, silent edge peak {edgePeak:G3}");
             }
             finally
@@ -153,32 +158,50 @@ internal static class AudioChecks
     }
     private static void Smoke()
     {
+        // A separate title device lifetime matches title -> gameplay -> title in the application.
+        for (int visit = 0; visit < 2; visit++)
+        {
+            using var title = new AudioDirector(titleOnly: true);
+            Check(title.Ready, "title music initializes on each visit");
+            title.SeekBgmForCheck(BgmAssets.Duration - 2);
+            var titleTimer = System.Diagnostics.Stopwatch.StartNew();
+            while (titleTimer.Elapsed.TotalSeconds < 4)
+            {
+                title.UpdateMix(.01f, AudioMix.TitleScreen);
+                Thread.Sleep(10);
+            }
+            Check(title.LoopsPlaying && title.BgmWrappedForCheck(4), "title music loops past the end on each visit");
+            title.Suspend(true); Check(!title.LoopsPlaying, "title stream pauses");
+            title.Suspend(false); Check(title.LoopsPlaying, "title stream resumes");
+            title.UpdateMix(.05f, AudioMix.TitleScreen, false);
+        }
         using var audio = new AudioDirector();
         Check(audio.Ready, "native audio device and all sound/music handles");
         var timer = System.Diagnostics.Stopwatch.StartNew();
-        string[] cues = ["step0", "step1", "step2", "jump", "land", "lamp", "stroke", "splash", "surface", "bump", "drink"];
+        (string Name, float Volume)[] cues = [("step0", AudioDirector.StepVolume), ("step1", AudioDirector.StepVolume),
+            ("step2", AudioDirector.StepVolume), ("jump", AudioDirector.JumpVolume), ("land", .8f * AudioDirector.LandingScale),
+            ("lamp", .6f), ("stroke", .6f), ("splash", .6f), ("surface", .6f), ("bump", AudioDirector.BumpVolume),
+            ("drink", AudioDirector.DrinkVolume), ("flight-start", AudioDirector.FlightStartVolume), ("bump", AudioDirector.FlightStopVolume),
+            ("warp", AudioDirector.WarpVolume)];
         int cue = 0;
         bool collected = false, muted = false, unmuted = false, sought = false;
-        while (timer.Elapsed.TotalSeconds < 34)
+        while (timer.Elapsed.TotalSeconds < 43)
         {
             double t = timer.Elapsed.TotalSeconds;
             audio.UpdateMix(.01f, AudioMix.At(t > 8 && t < 24 ? World.WaterLevel - 4 : 2, DayNightCycle.Smooth((float)(t - 3) / 3)));
             if (cue < cues.Length && t > cue * 3 + 1)
             {
-                string name = cues[cue++];
-                float volume = name.StartsWith("step") ? AudioDirector.StepVolume : name == "jump" ? AudioDirector.JumpVolume
-                    : name == "land" ? .8f * AudioDirector.LandingScale : name == "bump" ? AudioDirector.BumpVolume
-                    : name == "drink" ? AudioDirector.DrinkVolume : .6f;
+                var (name, volume) = cues[cue++];
                 audio.Play(name, volume);
             }
             if (t > 4 && !collected) { GC.Collect(); GC.WaitForPendingFinalizers(); collected = true; }
             if (t > 6 && !muted) { audio.ToggleMute(); muted = true; }
             if (t > 8 && !unmuted) { audio.ToggleMute(); unmuted = true; }
-            if (t > 25 && !sought) { audio.SeekBgmForCheck(BgmAssets.Duration - 2); sought = true; }
+            if (t > 28 && !sought) { audio.SeekBgmForCheck(BgmAssets.Duration - 2); sought = true; }
             Thread.Sleep(10);
         }
         Check(audio.LoopsPlaying && !audio.Muted, "all streams survive loop wrap, GC and mute toggle");
-        Check(sought && audio.BgmWrappedForCheck(15), "both five-minute MP3s restart after their ends");
-        Console.WriteLine("AUDIO DEVICE PASS: day/night MP3s and underwater loop, all eleven effects including drinking and louder bump, MP3 end/restart, GC and mute.");
+        Check(sought && audio.BgmWrappedForCheck(15), "both gameplay MP3s restart after their ends");
+        Console.WriteLine("AUDIO DEVICE PASS: day/night MP3s and underwater loop, all thirteen effects including flight start/manual stop and warp, MP3 end/restart, GC and mute.");
     }
 }

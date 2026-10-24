@@ -1,6 +1,6 @@
-"""Render two original 5-minute scores to MP3. Runtime needs only the resulting MP3s.
+"""Render original 5-minute scores to MP3. Runtime needs only the resulting MP3s.
 
-Requires Python + numpy and an explicitly supplied LAME shared library (not redistributed).
+Requires Python + numpy and lameenc, or an explicitly supplied LAME shared library (not redistributed).
 Example: python Tools/compose_ambient.py --lame path/to/libmp3lame64.dll
 """
 import argparse
@@ -93,6 +93,18 @@ def compose(night):
 
 
 def encode_mp3(pcm, destination, library):
+    if library is None:
+        import lameenc
+        encoder = lameenc.Encoder()
+        encoder.set_bit_rate(192)
+        encoder.set_in_sample_rate(RATE)
+        encoder.set_channels(2)
+        encoder.set_quality(2)
+        with destination.open("wb") as output:
+            for first in range(0, len(pcm), 16384):
+                output.write(encoder.encode(np.rint(pcm[first:first + 16384] * 32767).astype("<i2").tobytes()))
+            output.write(encoder.flush())
+        return
     lame = ct.CDLL(str(library))
     lame.lame_init.restype = ct.c_void_p
     handle = lame.lame_init()
@@ -136,18 +148,58 @@ def encode_mp3(pcm, destination, library):
         lame.lame_close(handle)
 
 
+def compose_title():
+    """Stillness Before the Threshold: suspended, slowly breathing harmony, no attacks or beat."""
+    rng = np.random.default_rng(170124)
+    pcm = np.zeros((RATE * SECONDS, 2), dtype=np.float32)
+    # An open D/A axis returns at the end, without a cadence or a foreground melody.
+    chords = [[38, 50, 57, 64, 69], [38, 50, 59, 64, 69], [38, 52, 57, 62, 69],
+              [43, 50, 57, 62, 66], [43, 52, 57, 62, 69], [38, 50, 57, 64, 69]]
+    for scene, chord in enumerate(chords):
+        for voice, midi in enumerate(chord):
+            start, duration = 2 + scene * 46 + voice * .73, 65
+            first = int(start * RATE)
+            count = min(int(duration * RATE), len(pcm) - first)
+            t = np.arange(count, dtype=np.float64) / RATE
+            f = 440 * 2 ** ((midi - 69) / 12)
+            phase = rng.uniform(0, 2 * np.pi)
+            envelope = smooth(t / 18) * smooth((duration - t) / 26)
+            breath = .88 + .12 * np.sin(2 * np.pi * .018 * t + phase)
+            for channel, detune in enumerate([.9996, 1.0004]):
+                p = 2 * np.pi * f * detune * t + phase + .09 * np.sin(t * .19 + channel)
+                tone = np.sin(p) + .045 * np.sin(2 * p + .4) + .012 * np.sin(3 * p)
+                pan = .5 + .18 * np.sin(voice * 1.9 + scene * .7 + channel * np.pi)
+                pcm[first:first + count, channel] += (tone * envelope * breath * .027 * np.sqrt(pan)).astype(np.float32)
+    dry = pcm.copy()
+    for delay, gain in [(1.13, .20), (2.71, .16), (4.37, .12), (7.19, .08), (10.31, .045)]:
+        frames = int(delay * RATE)
+        pcm[frames:] += dry[:-frames, ::-1] * gain
+    del dry
+    t = np.arange(len(pcm), dtype=np.float64) / RATE
+    pcm *= (smooth((t - 1.5) / 22) * smooth((298 - t) / 36))[:, None].astype(np.float32)
+    pcm *= .22 / max(float(np.max(np.abs(pcm))), .001)
+    pcm[:int(1.5 * RATE)] = 0
+    pcm[int(298 * RATE):] = 0
+    assert np.max(np.abs(pcm[:RATE])) == 0 and np.max(np.abs(pcm[-RATE:])) == 0
+    return pcm
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lame", type=Path, required=True)
+    parser.add_argument("--lame", type=Path, help="LAME shared library; otherwise use the lameenc Python package")
+    parser.add_argument("--track", choices=["day", "night", "title", "all"], default="all")
     args = parser.parse_args()
     target = ROOT / "CAERO" / "Music"
     preview = ROOT / "SaveData" / "Audio" / "Composition"
     target.mkdir(parents=True, exist_ok=True)
     preview.mkdir(parents=True, exist_ok=True)
-    manifest = []
-    for name, title in [("day", "Drifting Corridors"), ("night", "The Unlit Courtyard")]:
+    manifest_path = target / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else []
+    for name, title in [("day", "Drifting Corridors"), ("night", "The Unlit Courtyard"), ("title", "Stillness Before the Threshold")]:
+        if args.track not in ("all", name):
+            continue
         print("Composing " + name, flush=True)
-        pcm = compose(name == "night")
+        pcm = compose_title() if name == "title" else compose(name == "night")
         path = target / (name + ".mp3")
         encode_mp3(pcm, path, args.lame)
         # Lossless master is a local QA artifact, not a runtime dependency.
@@ -157,10 +209,10 @@ def main():
         info = {"name": name, "title": title, "seconds": SECONDS, "rate": RATE, "channels": 2,
                 "bitrate_kbps": 192, "peak": float(np.max(np.abs(pcm))),
                 "rms": float(np.sqrt(np.mean(pcm * pcm))), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-        manifest.append(info)
+        manifest = [entry for entry in manifest if entry["name"] != name] + [info]
         print(json.dumps(info), flush=True)
         del pcm
-    (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

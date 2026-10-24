@@ -44,6 +44,11 @@ internal static class SpecialRenderChecks
                 Capture("entrance", sector.Transform(new(22, Explorer.EyeHeight, 12)), sector.Transform(new(22, 1.25f, 28)));
             if (number == 7)
                 Capture("entrance", sector.Transform(new(22, Explorer.EyeHeight, 6)), sector.Transform(new(22, 1.25f, 29)));
+            if (number == 227)
+            {
+                Capture("west-entrance", sector.Transform(new(8, Explorer.EyeHeight, 12.5f)), sector.Transform(new(22, 1.25f, 12.5f)));
+                Capture("interior", sector.Transform(new(22, Explorer.EyeHeight, 15)), sector.Transform(new(22, 1.25f, 29)));
+            }
             if (number == 1601)
                 Capture("wall-view", sector.Transform(new(23, Explorer.EyeHeight, 22)), sector.Transform(new(30, 1.25f, 22)));
             if (number is 1 or 3)
@@ -120,6 +125,8 @@ internal static class SpecialRenderChecks
             foreach (var person in sector.People.Where(p => p.SpecialId != null))
             {
                 Vector3 forward = new(MathF.Sin(person.Yaw), 0, MathF.Cos(person.Yaw));
+                if (number == 227)
+                    Capture(person.SpecialId + "-surroundings", person.Position + forward * 7 + Vector3.UnitY * 2.5f, person.LookPoint);
                 if (person.SpecialId == "island-1169587-02")
                     Capture(person.SpecialId + "-corner", person.Position + forward * 6 + Vector3.UnitY * 2, person.LookPoint);
                 Vector3 hemPoint = person.Position + Vector3.UnitY * person.Scale * .16f;
@@ -134,7 +141,7 @@ internal static class SpecialRenderChecks
                 if (person.SpecialId == "island-1-05")
                     Capture(person.SpecialId + "-overlook", person.Position - forward * 8 + new Vector3(-3, 3.5f, 3),
                         person.Position + forward * 6 + Vector3.UnitY);
-                if (person.SpecialId == "island-641-06")
+                if (person.SpecialId is "island-641-06" or "island-1601-06")
                     Capture(person.SpecialId + "-overlook", person.Position - forward * 4 + new Vector3(forward.Z * 2, 2.4f, -forward.X * 2),
                         person.Position + forward * 10 + Vector3.UnitY);
                 session.Start(person); session.Update(100);

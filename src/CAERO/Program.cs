@@ -31,18 +31,22 @@ if (args.Contains("--diagonal-bridge-test")) { DiagonalBridgeChecks.Run(); retur
 if (args.Contains("--sea-stair-test")) { DiagonalBridgeChecks.SeaStairs(); return; }
 if (args.Contains("--capture-sea-stair-conflict")) { DiagonalBridgeChecks.CaptureSeaStair(); return; }
 if (args.Contains("--building-test")) { BuildingChecks.Run(); return; }
+if (args.Contains("--hall-roof-test")) { HallRoofChecks.Run(); return; }
+if (args.Contains("--capture-hall-roof")) { HallRoofChecks.Capture(); return; }
 if (args.Contains("--wayfinding-test")) { WayfindingChecks.Run(); return; }
 if (args.Contains("--dialogue-test")) { DialogueChecks.Run(); return; }
 if (args.Contains("--choice-input-test")) { ConversationInputChecks.Run(); return; }
 if (args.Contains("--resident-test")) { ResidentChecks.Run(); return; }
 if (args.Contains("--layout-test")) { ChaosChecks.Layouts(); return; }
 if (args.Contains("--wing-test")) { VariationChecks.WingSurfaces(); return; }
+if (args.Contains("--capture-courtyard")) { CourtyardEscapeChecks.Run(capture: true); return; }
 if (args.Contains("--warp-test")) { WarpChecks.Run(); return; }
 if (args.Contains("--special-test")) { SpecialChecks.Run(); return; }
 if (args.Contains("--ending-test")) { EndingChecks.Run(); return; }
 if (args.Contains("--capture-ending")) { EndingChecks.Capture(); return; }
 if (args.Contains("--menu-test")) { MenuChecks.Run(); return; }
 if (args.Contains("--capture-menus")) { MenuChecks.Capture(); return; }
+if (args.Contains("--capture-startup")) { StartupChecks.Capture(); return; }
 if (args.FirstOrDefault(a => a.StartsWith("--capture-special=")) is { } specialCapture)
 { SpecialRenderChecks.Run(int.Parse(specialCapture.Split('=')[1])); return; }
 if (args.Contains("--warp-render-test") || args.Contains("--capture-warp-transition"))

@@ -26,7 +26,17 @@ internal static class WingCatalog
                 B(x, (top - .6f) / 2, z, .6f, top - .6f, .6f, true);
         }
         float w = width, d = depth, h = height;
-        Slab(w / 2, 0, w, d, 0);
+        if (style == 4)
+        {
+            // A roofless courtyard must not trap a player without flight.
+            // Leave a three-unit drop-through opening, including in collision.
+            float sideWidth = (w - 3) / 2, endDepth = (d - 3) / 2;
+            Slab(sideWidth / 2, 0, sideWidth, d, 0);
+            Slab(w - sideWidth / 2, 0, sideWidth, d, 0);
+            foreach (float side in new[] { -1f, 1f })
+                Slab(w / 2, side * (1.5f + endDepth / 2), 3, endDepth, 0);
+        }
+        else Slab(w / 2, 0, w, d, 0);
         switch (style)
         {
             case 0: // Long colonnade with a flat cornice.

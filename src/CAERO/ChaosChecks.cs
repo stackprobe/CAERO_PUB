@@ -15,14 +15,14 @@ internal static class ChaosChecks
         using (var origin = Sector.Generate(1701, 0, 0))
         {
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            // Keep the original geometry baseline independent of mesh partitioning.
-            // This sorted digest was also verified against the pre-split generator.
+            // Keep the geometry baseline independent of mesh partitioning.
+            // Updated for the hall's trimmed column caps and shared roof surfaces.
             var vertices = origin.Stone.Vertices.Take(origin.SculptureFirst).Concat(origin.SeaStairGeometry.Vertices)
                 .Concat(origin.Land.Vertices.Take(origin.TerrainVertexCount));
             foreach (var p in vertices.OrderBy(p => p.X).ThenBy(p => p.Y).ThenBy(p => p.Z))
                 foreach (float v in new[] { p.X, p.Y, p.Z }) hash.AppendData(BitConverter.GetBytes(v == 0 ? 0f : v));
             string fingerprint = Convert.ToHexString(hash.GetHashAndReset());
-            Check(fingerprint == "075B3F8802A4E52EE840006AEF77D364343B121D1B4A81F9E77FD4AFF4740D41",
+            Check(fingerprint == "2D74DF395AD8BE96F29FDBAEE3E899174427610734603564CB91657EE3B44BE6",
                 "starting island's terrain/buildings/lamps/inlays match generator baseline: " + fingerprint);
             Check(origin.ChaosTier == 0 && origin.SkyPorts.Count == 0 && origin.HighRoof == 0, "no high-rise additions on starting island");
         }

@@ -38,7 +38,10 @@ internal static class SaveStore
                 return null;
             // Completed saves resume normal play; the current ending belongs only to this session.
             if (view.Progress is { Escaped: true } progress)
+            {
+                if (!AchievementStore.UnlockClear(filePath)) Console.Error.WriteLine("ACHIEVEMENTS: " + AchievementStore.LastError);
                 view = view with { Progress = progress with { Escaped = false, ExitId = null } };
+            }
             if (view.GeneratorVersion < CurrentGeneratorVersion)
             {
                 // Keep the world identity, but never restore an old position inside new geometry.
@@ -66,16 +69,25 @@ internal static class SaveStore
         return new(p.X, p.Y, p.Z, explorer.Yaw, explorer.Pitch, explorer.Flying, world.Seed,
             CurrentGeneratorVersion, address.IslandX, address.IslandZ, 1, progress);
     }
-    public static bool Save(Explorer explorer, World world, string? filePath = null) => Save(Capture(explorer, world), filePath);
+    public static bool Save(Explorer explorer, World world, string? filePath = null) =>
+        Save(Capture(explorer, world) with { Progress = world.Progress.Snapshot() }, filePath);
     internal static bool Save(SavedView view, string? filePath = null)
     {
         try
         {
+            // Persist completion before normalizing the adventure back to its resumable state.
+            // Even a new game or deletion of generated-view.json must retain this flag.
+            bool achievementSaved = true;
+            if (view.Progress is { Escaped: true } progress)
+            {
+                achievementSaved = AchievementStore.UnlockClear(filePath);
+                if (achievementSaved) view = view with { Progress = progress with { Escaped = false, ExitId = null } };
+            }
             string path = filePath ?? Path.Combine(DirectoryPath, "generated-view.json");
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
             File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(view, new JsonSerializerOptions { WriteIndented = true }));
             File.Move(path + ".tmp", path, true);
-            LastError = null; return true;
+            LastError = achievementSaved ? null : AchievementStore.LastError; return achievementSaved;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         { LastError = ex.Message; return false; }

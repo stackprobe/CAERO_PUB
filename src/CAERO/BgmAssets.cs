@@ -2,7 +2,7 @@ namespace Caero;
 
 internal static class BgmAssets
 {
-    internal static readonly string[] Names = ["day", "night"];
+    internal static readonly string[] Names = ["day", "night", "title"];
     internal const float Duration = 300;
     internal static string PathFor(string name)
     {

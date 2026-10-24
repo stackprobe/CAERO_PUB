@@ -16,6 +16,8 @@ internal sealed class Explorer
     public bool Grounded { get; private set; }
     public bool Jumped { get; private set; }
     public bool FlightBumped { get; private set; }
+    public bool FlightStarted { get; private set; }
+    public bool FlightStopped { get; private set; }
     public float LandingImpact { get; private set; }
     public float SplashImpact { get; private set; }
     public bool Surfaced { get; private set; }
@@ -77,9 +79,13 @@ internal sealed class Explorer
     }
     internal void AdvanceControls(float dt, World world, Vector3 move, bool rise, bool jump, bool descend, bool fast, bool flightPressed)
     {
-        if (flightPressed) ToggleFlight(world);
+        bool wasFlying = Flying;
+        bool toggled = flightPressed && ToggleFlight(world);
         // Mouse look steers flight. Movement keys cannot stop or reverse it.
         Advance(dt, world, Flying ? Forward : move, rise, jump, descend, fast);
+        // Advance clears the previous frame's events before simulating motion.
+        FlightStarted = toggled && !wasFlying;
+        FlightStopped = toggled && wasFlying;
     }
 
     // Input-independent simulation is also used by the movement regression checks.
@@ -184,7 +190,11 @@ internal sealed class Explorer
     }
 
     internal void ClearMotionEvents() => ResetAudioEvents();
-    private void ResetAudioEvents() { SplashImpact = 0; Surfaced = false; Jumped = false; FlightBumped = false; LandingImpact = 0; }
+    private void ResetAudioEvents()
+    {
+        SplashImpact = 0; Surfaced = false; Jumped = false;
+        FlightBumped = FlightStarted = FlightStopped = false; LandingImpact = 0;
+    }
     private void TrackSurface()
     {
         // Hysteresis prevents repeated exit sounds while bobbing at the waterline.

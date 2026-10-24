@@ -11,6 +11,7 @@
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
     <EmbeddedResource Include="Assets/caero-icon.png" LogicalName="CAERO.ApplicationIcon.png" />
+    <EmbeddedResource Include="Assets/raylib-logo.png" LogicalName="CAERO.RaylibLogo.png" />
     <None Update="Shaders/**/*" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Music/*.mp3" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Update="Content/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -55,6 +55,20 @@ internal static class VariationChecks
                 var mesh = WingCatalog.Build(style, width, depth, height, Color.Gray, Color.White, Color.LightGray);
                 Check(mesh.CountCoplanarOverlaps() == 0, $"no overlapping wing surfaces: {WingCatalog.Names[style]}, {width}/{depth}/{height}");
                 Check(mesh.HasFiniteNormals, "clipped wing normals remain finite");
+                if (style == 4)
+                {
+                    var courtyard = new WalkableScene(); mesh.AddCollisionTo(courtyard);
+                    for (float x = -1; x <= 1; x += .5f)
+                        for (float z = -1; z <= 1; z += .5f)
+                        {
+                            Check(float.IsNegativeInfinity(courtyard.FloorAt(width / 2 + x, z, .01f)),
+                                "courtyard exit has no floor across the player's footprint");
+                            Check(!courtyard.Blocked(new(width / 2 + x, -.3f, z)),
+                                "courtyard exit is open through the slab thickness");
+                        }
+                    Check(Math.Abs(courtyard.FloorAt(width / 2, 2, .01f)) < .002f,
+                        "courtyard retains a walkable floor around the exit");
+                }
                 if (style is not (3 or 5)) continue;
                 var scene = new WalkableScene(); mesh.AddCollisionTo(scene);
                 foreach (float side in new[] { -1f, 1f })
@@ -70,5 +84,6 @@ internal static class VariationChecks
                     }
             }
         Console.WriteLine("WING SURFACES: all 20 styles at three sizes, no coplanar overlaps and supported finger/fork roofs passed.");
+        CourtyardEscapeChecks.Run();
     }
 }

@@ -11,7 +11,7 @@ internal sealed record WarpTerminal(int Dx, int Dz, int Distance, Vector3 LocalP
         (0, 1) => "南", (-1, 1) => "南西", (-1, 0) => "西", _ => "北西"
     };
     internal string Letters => (Dz < 0 ? "N" : Dz > 0 ? "S" : "") + (Dx < 0 ? "W" : Dx > 0 ? "E" : "");
-    internal string ConfirmationMessage => "ワープします。ワープ先は "
+    internal string ConfirmationMessage => "ワープしますか？　ワープ先は "
         + string.Join(" ", new[] {
             Dz == 0 ? null : $"{(Dz < 0 ? "北" : "南")}へ {Distance} 島",
             Dx == 0 ? null : $"{(Dx < 0 ? "西" : "東")}へ {Distance} 島"
@@ -88,7 +88,7 @@ internal sealed record WarpTarget(Sector Sector, WarpTerminal Terminal)
 internal static class WarpTravel
 {
     internal const float ArrivalDrop = 1.1f;
-    internal const string UiCharacters = "調べてワープ北東南西島世界の端を越えるため移動できません装置します。先はへです。";
+    internal const string UiCharacters = "調べてワープ北東南西島世界の端を越えるため移動できません装置しますか？　先はへです。";
     internal static bool Examine(World world, Explorer player, WarpTarget target, Conversation conversation, Action? beforeTravel = null)
     {
         if (player.Flying) return false;

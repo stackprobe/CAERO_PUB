@@ -175,13 +175,19 @@ internal static class GameApplication
 {
     internal static void Run(int newGameSeed, bool sound)
     {
-        WindowHost.Open(); GameSession? session = null;
+        WindowHost.Open(); GameSession? session = null; AudioDirector? titleAudio = null;
         try
         {
+            // Start the title track before loading the UI; the credit never restarts or fades this music.
+            titleAudio = new(sound, titleOnly: true);
+            titleAudio.UpdateTitle(.05f);
+            var startup = new StartupSequence(); double startupTick = Raylib.GetTime();
+            using var credit = new StartupCredit();
             using var text = new ConversationUi(); using var menus = new GameMenus(text); var flow = new GameFlow();
             var transition = new ScreenTransition();
             SavedView? saved = SaveStore.Load(); bool running = true;
             flow.ToTitle(saved != null);
+            menus.Cleared = AchievementStore.IsCleared();
             var savedProgress = new AdventureProgress(); savedProgress.Restore(saved?.Progress);
             Raylib.EnableCursor();
             while (running && !Raylib.WindowShouldClose())
@@ -189,7 +195,9 @@ internal static class GameApplication
                 float dt = Math.Min(Raylib.GetFrameTime(), .05f);
                 bool alt = Raylib.IsKeyDown(KeyboardKey.LeftAlt) || Raylib.IsKeyDown(KeyboardKey.RightAlt);
                 if (alt && Raylib.IsKeyPressed(KeyboardKey.Enter)) WindowHost.Toggle();
-                bool changed = false;
+                // Use wall time for the splash, even if initialization or a frame takes longer than dt.
+                bool changed = startup.Active;
+                double now = Raylib.GetTime(); startup.Update(now - startupTick); startupTick = now;
                 if (transition.Active)
                 {
                     transition.Update(dt); changed = true;
@@ -200,10 +208,12 @@ internal static class GameApplication
                             session!.Dispose(); session = null;
                             saved = SaveStore.Load(); savedProgress.Restore(saved?.Progress);
                             flow.ToTitle(saved != null); Raylib.EnableCursor();
+                            menus.Cleared = AchievementStore.IsCleared();
                         }
                         else
                         {
                             // The previous frame has already presented black with Loading... .
+                            titleAudio?.Dispose(); titleAudio = null;
                             session = new(newGameSeed, transition.Destination == MenuAction.Continue ? saved : null, sound);
                             flow.Start();
                         }
@@ -230,6 +240,7 @@ internal static class GameApplication
                             changed = true; break;
                         case MenuAction.Title:
                             session!.Dispose(); session = null; saved = SaveStore.Load(); savedProgress.Restore(saved?.Progress); flow.ToTitle(saved != null);
+                            menus.Cleared = AchievementStore.IsCleared();
                             Raylib.EnableCursor(); changed = true; break;
                     }
                 }
@@ -238,8 +249,14 @@ internal static class GameApplication
                 {
                     transition.Begin(MenuAction.Title);
                 }
+                if (session == null)
+                {
+                    titleAudio ??= new(sound, titleOnly: true);
+                    titleAudio.UpdateTitle(dt, startup.Active ? 1 : 1 - transition.Opacity);
+                }
                 Raylib.BeginDrawing();
-                if (transition.Opacity < 1)
+                if (startup.Active) credit.Draw(startup, menus, flow, saved != null);
+                else if (transition.Opacity < 1)
                 {
                     if (session != null) session.Draw(text, flow.Screen == GameScreen.Playing);
                     if (flow.Screen != GameScreen.Playing) menus.Draw(flow, saved != null, session?.World.Progress.CanFly ?? savedProgress.CanFly);
@@ -255,6 +272,6 @@ internal static class GameApplication
             Directory.CreateDirectory(SaveStore.DirectoryPath);
             File.WriteAllText(Path.Combine(SaveStore.DirectoryPath, "error.log"), error.ToString()); throw;
         }
-        finally { session?.Dispose(); Raylib.CloseWindow(); }
+        finally { titleAudio?.Dispose(); session?.Dispose(); Raylib.CloseWindow(); }
     }
 }

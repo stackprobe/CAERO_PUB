@@ -30,6 +30,16 @@ internal static class AudioSynthesis
         result.Add(Effect("bump", .32, 36, (t, n) =>
             .5 * Math.Sin(Math.Tau * (440 * t - 450 * t * t)) * Math.Exp(-t * 14)
             + .08 * n * Math.Exp(-t * 45)));
+        result.Add(Effect("flight-start", .45, 38, (t, n) =>
+            .4 * Math.Sin(Math.Tau * (260 * t + 650 * t * t)) * Math.Exp(-t * 8)
+            + .06 * n * Math.Sin(Math.PI * t / .45) * Math.Exp(-t * 10)));
+        result.Add(Effect("warp", 2.4, 39, (t, n) =>
+        {
+            double envelope = Math.Pow(Math.Sin(Math.PI * t / 2.4), 2) * Math.Exp(-t * .5);
+            double pulse = .7 + .3 * Math.Sin(Math.Tau * (5 * t + 2 * t * t));
+            return envelope * (pulse * (.32 * Math.Sin(Math.Tau * (130 * t + 180 * t * t))
+                + .14 * Math.Sin(Math.Tau * (195 * t + 270 * t * t))) + .22 * n);
+        }));
         result.Add(Effect("drink", 1.25, 37, (t, n) =>
         {
             double value = 0;

@@ -42,15 +42,21 @@ internal sealed class GameMenus : IDisposable
 {
     private readonly ConversationUi text;
     private readonly Texture2D title;
+    private readonly Texture2D trophy;
+    internal bool Cleared { get; set; }
     internal GameMenus(ConversationUi text)
     {
         this.text = text;
         title = ContentAssets.LoadTexture("title.png");
         if (!Raylib.IsTextureValid(title)) throw new InvalidDataException("Cannot load CAERO title image.");
         Raylib.SetTextureFilter(title, TextureFilter.Bilinear);
+        trophy = ContentAssets.LoadTexture("trophy.png");
+        if (!Raylib.IsTextureValid(trophy)) throw new InvalidDataException("Cannot load clear achievement trophy.");
+        Raylib.SetTextureFilter(trophy, TextureFilter.Bilinear);
     }
-    public void Dispose() => Raylib.UnloadTexture(title);
+    public void Dispose() { Raylib.UnloadTexture(trophy); Raylib.UnloadTexture(title); }
     private const string SaveLossWarning = "現在のセーブデータは失われます。";
+    internal const string ClearAchievementText = "クリア実績：脱出を達成";
     internal const string Characters = "はじめから（ゲームスタート）コンテニュー終了ポーズゲームを続ける操作方法タイトルへもどる［Enter / Esc］戻る移動視点・飛行方向高速移動ジャンプ・遊泳上昇飛行薬取得後、ジャンプ中に開始 / 解除話す・調べる / 全文表示・次ページ本文を閉じる / マウス解放（デスクトップや他のアプリを操作したいときに）ポーズ・決定全画面切替？？？" + SaveLossWarning;
     internal static string FlightDescription(bool canFly) => canFly ? "飛行薬取得後、ジャンプ中に開始 / 解除" : "？？？";
     private static readonly Color Ink = new(232, 234, 222, 255), Muted = new(139, 158, 162, 255);
@@ -87,7 +93,7 @@ internal sealed class GameMenus : IDisposable
         if (flow.Screen == GameScreen.Paused && Raylib.IsKeyPressed(KeyboardKey.Escape)) return MenuAction.Resume;
         return Raylib.IsKeyPressed(KeyboardKey.Enter) ? flow.Confirm(canContinue) : MenuAction.None;
     }
-    internal void Draw(GameFlow flow, bool canContinue, bool canFly = false)
+    internal void Draw(GameFlow flow, bool canContinue, bool canFly = false, bool showItems = true)
     {
         int w = Raylib.GetScreenWidth(), h = Raylib.GetScreenHeight();
         if (flow.Screen == GameScreen.Title)
@@ -99,6 +105,7 @@ internal sealed class GameMenus : IDisposable
                 new((w - title.Width * scale) / 2, (h - title.Height * scale) / 2, title.Width * scale, title.Height * scale), Vector2.Zero, 0, Color.White);
         }
         else Raylib.DrawRectangle(0, 0, w, h, new Color(7, 14, 20, flow.Screen == GameScreen.Controls ? 255 : 218));
+        if (!showItems) return;
         if (flow.Screen == GameScreen.Controls) { DrawControls(flow.ControlsFromGame && canFly); return; }
         if (flow.Screen == GameScreen.Paused) Center("ポーズ", h * .24f, Math.Clamp(w / 45f, 22, 34), Ink);
         string[] entries = Entries(flow.Screen);
@@ -112,6 +119,28 @@ internal sealed class GameMenus : IDisposable
             Center(entries[i], rect.Y + (rect.Height - size) / 2, size, disabled ? new Color(76, 94, 99, 255) : Ink);
         }
         if (flow.Screen == GameScreen.Title && canContinue && flow.Selected == 0) DrawSaveLossWarning();
+        if (flow.Screen == GameScreen.Title) DrawClearAchievement();
+    }
+    internal static Rectangle ClearAchievementBounds(int width, int height)
+    {
+        float size = Math.Clamp(width / 30f, 36, 48);
+        return new(12, height - 12 - size, size, size);
+    }
+    internal void DrawClearAchievement(Vector2? pointer = null)
+    {
+        if (!Cleared) return;
+        int w = Raylib.GetScreenWidth(), h = Raylib.GetScreenHeight();
+        Rectangle rect = ClearAchievementBounds(w, h);
+        Raylib.DrawTexturePro(trophy, new(0, 0, trophy.Width, trophy.Height), rect, Vector2.Zero, 0, Color.White);
+        if (!Raylib.CheckCollisionPointRec(pointer ?? Raylib.GetMousePosition(), rect)) return;
+        float size = Math.Clamp(w / 65f, 14, 18);
+        float width = text.TextWidth(ClearAchievementText, size) + 24, height = size + 20;
+        float left = rect.X, bottom = rect.Y - 8;
+        var fill = new Color(20, 32, 40, 242);
+        Raylib.DrawRectangleRounded(new(left, bottom - height, width, height), .18f, 8, fill);
+        Raylib.DrawTriangle(new(rect.X + rect.Width / 2 - 6, bottom - 1),
+            new(rect.X + rect.Width / 2, bottom + 6), new(rect.X + rect.Width / 2 + 6, bottom - 1), fill);
+        text.Label(ClearAchievementText, left + 12, bottom - height + 10, size, Ink);
     }
     private void DrawSaveLossWarning()
     {

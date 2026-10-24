@@ -23,8 +23,8 @@ internal static class SpecialChecks
     internal static void Run()
     {
         var data = SpecialContent.Data;
-        Check(data.Objects.Length == 49 && data.Objects.Select(d => d.Island).Distinct().Count() == 16, "all 49 authored additions on 16 islands");
-        Check(data.Objects.Count(d => d.Kind == SpecialKind.Resident) == 29
+        Check(data.Objects.Length == 51 && data.Objects.Select(d => d.Island).Distinct().Count() == 17, "all 51 authored additions on 17 islands");
+        Check(data.Objects.Count(d => d.Kind == SpecialKind.Resident) == 31
             && data.Objects.Count(d => d.Kind == SpecialKind.Inscription) == 14
             && data.Objects.Count(d => d.Kind == SpecialKind.Item) == 5
             && data.Objects.Count(d => d.Kind == SpecialKind.Exit) == 1, "complete authoring manifest");
@@ -127,18 +127,26 @@ internal static class SpecialChecks
                         }
                         ChoiceBranches(p);
                     }
-                    if (d.Id == "island-641-06")
+                    if (d.Id is "island-641-06" or "island-1601-06")
                     {
                         Vector3 foot = s.ResidentLocal(p.Anchor);
                         Check(p.Pose == ResidentPose.Standing && Math.Abs(foot.Y - s.TowerFloors * 12) < .001f,
-                            "island 641 observer stands at the very top of the walled tower");
+                            $"island {d.Island} observer stands at the very top of the walled tower");
                         if (seed == World.DefaultSeed)
                         {
-                            var (targetX, targetZ) = Address(701);
+                            int targetIsland = d.Id == "island-1601-06" ? 60493 : 701;
+                            if (d.Id == "island-1601-06")
+                            {
+                                Vector3 center = s.Transform(new(22, foot.Y, 22));
+                                Check(p.Anchor.X > center.X && p.Anchor.Z > center.Z
+                                    && Vector3.Distance(foot, new(16, foot.Y, 16)) < .001f,
+                                    "island 1601 observer stands inward of the southeast roof corner, clear of the stair aisle");
+                            }
+                            var (targetX, targetZ) = Address(targetIsland);
                             Vector3 toward = new((targetX - x) * World.CellSize - (p.Anchor.X - s.Offset.X), 0,
                                 (targetZ - z) * World.CellSize - (p.Anchor.Z - s.Offset.Z));
                             Check(Vector3.Dot(Vector3.Normalize(toward), new(MathF.Sin(p.Yaw), 0, MathF.Cos(p.Yaw))) > .999999f,
-                                "fixed-seed island 641 observer faces island 701");
+                                $"fixed-seed island {d.Island} observer faces island {targetIsland}");
                         }
                     }
                     if (d.Id == "island-1169587-02")

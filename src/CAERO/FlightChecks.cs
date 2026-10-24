@@ -20,6 +20,7 @@ internal static class FlightChecks
             for (int i = 0; i < 100 && wall.Flying; i++)
                 wall.Advance(dt, world, across, false, false, false, true);
             Check(!wall.Flying && wall.FlightBumped && !world.Blocked(wall.Position), "fast flight stops before tower wall");
+            Check(!wall.FlightStarted && !wall.FlightStopped, "wall collision does not emit manual flight sounds");
             wall.Advance(dt, world, Vector3.Zero, false, false, false, false);
             Check(!wall.FlightBumped, "bump plays once");
 
@@ -35,6 +36,7 @@ internal static class FlightChecks
                 for (int i = 0; i < 100 && e.Flying; i++)
                     e.Advance(dt, world, -Vector3.UnitY, false, false, false, fast);
                 Check(!e.Flying && e.Swimming && e.SplashImpact > 0 && !e.FlightBumped, "water contact uses splash");
+                Check(!e.FlightStarted && !e.FlightStopped, "water contact does not emit manual flight sounds");
                 float min = e.Position.Y;
                 for (int i = 0; i < (int)(4 / dt); i++)
                 {
@@ -59,20 +61,27 @@ internal static class FlightChecks
         Check(!player.ToggleFlight(world), "jumping without the flight potion cannot enter flight");
         world.Progress.Collect(SpecialContent.Data.Objects.Single(d => d.Effect == ItemEffect.Flight));
         player.GoTo(world.Views[0]); player.Advance(.02f, world, Vector3.Zero, false, false, false, false);
-        Check(!player.ToggleFlight(world), "F cannot take off from the ground");
+        player.AdvanceControls(.02f, world, Vector3.Zero, false, false, false, false, true);
+        Check(!player.Flying && !player.FlightStarted && !player.FlightStopped, "F on the ground emits no flight sound");
         player.AdvanceControls(.1f, world, Vector3.Zero, true, true, false, false, false);
         Check(player.Jumped && !player.Grounded, "takeoff requires an actual jump");
         Vector3 start = player.Position, direction = player.Forward;
         player.AdvanceControls(.1f, world, -direction, false, false, false, false, true);
         Check(player.Flying && Vector3.Distance(player.Position, start + direction * .5f) < .002f,
             "F during a jump starts flight and backward input cannot reverse it");
+        Check(player.FlightStarted && !player.FlightStopped && !player.FlightBumped, "F takeoff emits only the start sound");
         start = player.Position;
         player.AdvanceControls(.1f, world, Vector3.Zero, false, false, false, false, false);
         Check(Vector3.Distance(player.Position, start + direction * .5f) < .002f, "flight continues without movement keys");
+        Check(!player.FlightStarted && !player.FlightStopped, "manual flight sounds reset on the next frame");
         player.Yaw += .4f; player.Pitch = .25f; start = player.Position;
         player.AdvanceControls(.1f, world, -player.Forward, false, false, true, false, false);
         Check(Vector3.Distance(player.Position, start + player.Forward * .5f) < .002f, "look direction steers flight; descend input cannot override it");
-        Check(player.ToggleFlight(world) && !player.Flying && !player.ToggleFlight(world), "F cancels flight; falling afterward cannot restart it");
+        player.AdvanceControls(.02f, world, Vector3.Zero, false, false, false, false, true);
+        Check(!player.Flying && player.FlightStopped && !player.FlightStarted && !player.FlightBumped,
+            "F cancellation emits only the manual stop sound");
+        player.AdvanceControls(.02f, world, Vector3.Zero, false, false, false, false, true);
+        Check(!player.Flying && !player.FlightStarted && !player.FlightStopped, "F while falling cannot restart flight or repeat the stop sound");
         player.GoTo(new("FALL", new(80, 40, 0), new(80, 40, -1)));
         player.Advance(.02f, world, Vector3.Zero, false, false, false, false);
         Check(!player.ToggleFlight(world), "walking off a ledge is not a jump");

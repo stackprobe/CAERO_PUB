@@ -20,5 +20,16 @@
     "peak": 0.47999998927116394,
     "rms": 0.09122933447360992,
     "sha256": "aac8615cd67a525b7a2eef213e46bebd7d1a210ecd3c66b1b7aba14587111ce3"
+  },
+  {
+    "name": "title",
+    "title": "Stillness Before the Threshold",
+    "seconds": 300,
+    "rate": 44100,
+    "channels": 2,
+    "bitrate_kbps": 192,
+    "peak": 0.2200000137090683,
+    "rms": 0.05186526104807854,
+    "sha256": "73da4cc49462eb5f1fad60725056a50e0449fbbc85584c04597c8517a75e6211"
   }
 ]

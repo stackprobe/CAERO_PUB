@@ -11,6 +11,8 @@ internal sealed partial class Sector
     internal float IdentityStrength => StrengthAt(IslandDistance);
     internal static float StrengthAt(double distance) => distance < 5 ? 0 : .15f + .85f * Math.Clamp((float)(distance - 5) / 30, 0, 1);
     internal List<int> WingStyles { get; } = [];
+    // Building-local centers of the roofless wings' drop-through exits.
+    internal List<Vector3> CourtyardOpenings { get; } = [];
     internal float WingReach { get; private set; }
     internal int WeedPatchBudget { get; private set; }
     internal float WeedDensity { get; private set; }
@@ -99,6 +101,7 @@ internal sealed partial class Sector
             var module = WingCatalog.Build(style, reach, depth, height, stone, pale, floor);
             module.Transform(p => new(-p.X, p.Y, -p.Z), new(-37.4f, y, z));
             Stone.Append(module);
+            if (style == 4) CourtyardOpenings.Add(new(-37.4f - reach / 2, y, z));
             if (style is 0 or 7 or 9 or 15)
             {
                 ResidentAreas.Add(new(-37.4f - reach, -37.4f, z - depth / 2, z + depth / 2, y, ResidentAreaKind.OpenGround));

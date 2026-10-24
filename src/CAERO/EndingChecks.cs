@@ -10,6 +10,7 @@ internal static class EndingChecks
 
     internal static void Run()
     {
+        AchievementChecks.Run();
         var ending = new EndingSequence();
         Check(ending.WhiteOpacity == 0 && ending.TextOpacity == 0 && ending.ImageOpacity == 0 && !ending.CanReturn,
             "ending begins on the frozen scene");
@@ -71,10 +72,12 @@ internal static class EndingChecks
                 Shot("question", game);
                 game.Conversation.SelectAnswer(false); game.Conversation.Advance();
                 Check(!game.World.Progress.Escaped, "No cancels in the live game session");
+                Check(!AchievementStore.IsCleared(savePath), "cancelling relic does not grant completion");
                 SpecialInteraction.Examine(game.World, game.Player, prop, game.Conversation);
                 game.Conversation.Advance(); game.Update(0);
                 Check(game.World.Progress.Escaped && !game.Player.Captured, "Yes starts ending and releases the pointer");
                 var saved = SaveStore.Load(savePath)!;
+                Check(AchievementStore.IsCleared(savePath), "confirming relic immediately persists clear achievement");
                 Check(saved.Progress is { Escaped: false } && saved.Progress.Collected.Order().SequenceEqual(inventory.Order()),
                     "immediate goal autosave retains every acquired item and permits Continue");
                 Check(Vector3.Distance(game.World.LocalOf(new(saved.IslandX, saved.IslandZ, new(saved.X, saved.Y, saved.Z))), eye) < .001f
@@ -107,6 +110,7 @@ internal static class EndingChecks
         finally
         {
             File.Delete(savePath); if (File.Exists(savePath + ".tmp")) File.Delete(savePath + ".tmp");
+            File.Delete(AchievementStore.PathFor(savePath));
             Raylib.CloseWindow();
         }
     }

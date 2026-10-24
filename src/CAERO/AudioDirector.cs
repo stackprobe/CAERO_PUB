@@ -4,8 +4,9 @@ using Raylib_cs;
 
 namespace Caero;
 
-internal readonly record struct AudioMix(float Underwater, float Day, float Night)
+internal readonly record struct AudioMix(float Underwater, float Day, float Night, float Title = 0)
 {
+    internal static AudioMix TitleScreen => new(0, 0, 0, .55f);
     public static AudioMix At(float eyeY, float night = 0)
     {
         float submerged = DayNightCycle.Smooth((World.WaterLevel - eyeY) / 1.2f);
@@ -14,15 +15,17 @@ internal readonly record struct AudioMix(float Underwater, float Day, float Nigh
             .7f * MathF.Sqrt(night) * (1 - .8f * submerged));
     }
     public float For(string name) => name switch
-    { "underwater" => Underwater, "day" => Day, "night" => Night, _ => 0 };
+    { "underwater" => Underwater, "day" => Day, "night" => Night, "title" => Title, _ => 0 };
 }
 
-// Only the underwater WAV needs pinned memory; day/night MP3s stream from bundled files.
+// Only the underwater WAV needs pinned memory; MP3s stream from bundled files.
 // All raylib audio APIs are called on the main thread; no managed audio callback.
 internal sealed class AudioDirector : IDisposable
 {
     internal const float StepVolume = .103125f, JumpVolume = .24375f, LandingScale = .375f;
     internal const float BumpVolume = 1f, DrinkVolume = .8f;
+    internal const float FlightStartVolume = .6f, FlightStopVolume = 1f;
+    internal const float WarpVolume = .8f;
     private sealed class Loop(Music music, GCHandle memory)
     {
         public Music Music = music;
@@ -37,6 +40,7 @@ internal sealed class AudioDirector : IDisposable
     public bool Ready { get; private set; }
     public bool Muted { get; private set; }
     private bool suspended;
+    private readonly bool titleOnly;
     internal void Suspend(bool value)
     {
         if (!Ready || suspended == value) return;
@@ -45,18 +49,19 @@ internal sealed class AudioDirector : IDisposable
         foreach (var loop in loops.Values)
             if (value) Raylib.PauseMusicStream(loop.Music); else Raylib.ResumeMusicStream(loop.Music);
     }
-    internal bool LoopsPlaying => Ready && loops.Count == 3 && loops.Values.All(l => Raylib.IsMusicStreamPlaying(l.Music));
+    internal bool LoopsPlaying => Ready && loops.Count == (titleOnly ? 1 : 3) && loops.Values.All(l => Raylib.IsMusicStreamPlaying(l.Music));
     private Vector3? previous;
     private float stepDistance, strokeTime, lampCooldown, gain;
     private int stepIndex;
-    public AudioDirector(bool enabled = true)
+    public AudioDirector(bool enabled = true, bool titleOnly = false)
     {
+        this.titleOnly = titleOnly;
         if (!enabled) return;
         try
         {
             Raylib.InitAudioDevice(); ownsDevice = true;
             if (!Raylib.IsAudioDeviceReady()) throw new InvalidOperationException("No audio output device.");
-            foreach (var clip in AudioSynthesis.Create())
+            foreach (var clip in titleOnly ? Array.Empty<AudioSynthesis.Clip>() : AudioSynthesis.Create())
             {
                 byte[] bytes = clip.Wav();
                 if (clip.Loop)
@@ -80,10 +85,10 @@ internal sealed class AudioDirector : IDisposable
                     sounds.Add(clip.Name, sound);
                 }
             }
-            foreach (string name in BgmAssets.Names)
+            foreach (string name in BgmAssets.Names.Where(name => (name == "title") == titleOnly))
                 StartLoop(name, Raylib.LoadMusicStream(BgmAssets.PathFor(name)));
             Ready = true;
-            Console.WriteLine("AUDIO: day/night music, quiet underwater loop and eleven effects ready; no wave or wind audio.");
+            Console.WriteLine(titleOnly ? "AUDIO: title music ready (looping)." : "AUDIO: day/night music, quiet underwater loop and thirteen effects ready; no wave or wind audio.");
         }
         catch (Exception error)
         {
@@ -104,6 +109,8 @@ internal sealed class AudioDirector : IDisposable
         Muted = !Muted;
         if (Muted) foreach (var sound in sounds.Values) Raylib.StopSound(sound);
     }
+    internal void UpdateTitle(float dt, float visibility = 1) =>
+        UpdateMix(dt, AudioMix.TitleScreen, Raylib.IsWindowFocused(), visibility);
     public void ResetListener(Vector3 position)
     { previous = position; stepDistance = strokeTime = 0; lampHistory.Clear(); }
     internal void ShiftOrigin(Vector3 delta) { if (previous.HasValue) previous += delta; }
@@ -111,6 +118,7 @@ internal sealed class AudioDirector : IDisposable
     public void Update(float dt, World world, Explorer explorer, Renderer renderer)
     {
         bool drank = explorer.ConsumePotionDrink();
+        bool warped = world.ConsumeWarpStart();
         if (!Ready || suspended) return;
         dt = Math.Clamp(dt, 0, .1f);
         bool audible = Raylib.IsWindowFocused() && !Muted;
@@ -121,6 +129,9 @@ internal sealed class AudioDirector : IDisposable
         previous = explorer.Position;
         if (audible)
         {
+            if (warped) Play("warp", WarpVolume);
+            if (explorer.FlightStarted) Play("flight-start", FlightStartVolume);
+            if (explorer.FlightStopped) Play("bump", FlightStopVolume);
             if (explorer.FlightBumped) Play("bump", BumpVolume);
             if (drank) Play("drink", DrinkVolume);
             if (explorer.Jumped) Play("jump", JumpVolume);
@@ -164,7 +175,7 @@ internal sealed class AudioDirector : IDisposable
             lampHistory[lamp.Key] = brightness;
         }
     }
-    internal void UpdateMix(float dt, AudioMix mix, bool audible = true)
+    internal void UpdateMix(float dt, AudioMix mix, bool audible = true, float visibility = 1)
     {
         if (!Ready) return;
         float blend = 1 - MathF.Exp(-Math.Max(0, dt) * 2);
@@ -173,7 +184,7 @@ internal sealed class AudioDirector : IDisposable
         {
             Raylib.UpdateMusicStream(loop.Music);
             loop.Volume += (mix.For(name) - loop.Volume) * blend;
-            Raylib.SetMusicVolume(loop.Music, loop.Volume * gain);
+            Raylib.SetMusicVolume(loop.Music, loop.Volume * gain * Math.Clamp(visibility, 0, 1));
         }
     }
     internal void Play(string name, float volume = .6f, float pitch = 1, float pan = .5f)
@@ -184,10 +195,10 @@ internal sealed class AudioDirector : IDisposable
     }
     internal void SeekBgmForCheck(float seconds)
     {
-        foreach (string name in BgmAssets.Names) Raylib.SeekMusicStream(loops[name].Music, seconds);
+        foreach (var (name, loop) in loops.Where(pair => BgmAssets.Names.Contains(pair.Key))) Raylib.SeekMusicStream(loop.Music, seconds);
     }
-    internal bool BgmWrappedForCheck(float maximumSeconds) => BgmAssets.Names.All(name =>
-        Raylib.GetMusicTimePlayed(loops[name].Music) >= 0 && Raylib.GetMusicTimePlayed(loops[name].Music) < maximumSeconds);
+    internal bool BgmWrappedForCheck(float maximumSeconds) => loops.Where(pair => BgmAssets.Names.Contains(pair.Key)).All(pair =>
+        Raylib.GetMusicTimePlayed(pair.Value.Music) >= 0 && Raylib.GetMusicTimePlayed(pair.Value.Music) < maximumSeconds);
     public void Dispose()
     {
         Ready = false;

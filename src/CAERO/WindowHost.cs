@@ -52,6 +52,8 @@ internal static class WindowHost
         }
         Raylib.SetWindowPosition(monitor.Monitor.Left + (monitor.Monitor.Right - monitor.Monitor.Left - width) / 2,
             monitor.Monitor.Top + (monitor.Monitor.Bottom - monitor.Monitor.Top - height) / 2);
+        // Present black before showing the native window, including during startup asset loading.
+        Raylib.BeginDrawing(); Raylib.ClearBackground(Color.Black); Raylib.EndDrawing();
         Raylib.ClearWindowState(ConfigFlags.HiddenWindow);
         Raylib.SetWindowMinSize(640, 360);
         Raylib.SetExitKey(KeyboardKey.Null);

@@ -15,9 +15,9 @@ internal static class WarpChecks
             (0, 1, "南へ 15 島"), (-1, 1, "南へ 15 島 西へ 15 島"),
             (-1, 0, "西へ 15 島"), (-1, -1, "北へ 15 島 西へ 15 島") })
             Check(new WarpTerminal(dx, dz, 15, default, default).ConfirmationMessage
-                == $"ワープします。ワープ先は {destination} です。", "eight-direction confirmation text");
+                == $"ワープしますか？　ワープ先は {destination} です。", "eight-direction confirmation text");
         Check(new WarpTerminal(0, -1, 55, default, default).ConfirmationMessage
-            == "ワープします。ワープ先は 北へ 55 島 です。", "north confirmation text");
+            == "ワープしますか？　ワープ先は 北へ 55 島 です。", "north confirmation text");
         var rotations = new HashSet<int>(); bool roof = false, inside = false;
         var stairSides = new HashSet<int>();
         foreach (int seed in new[] { 1701, 48291, -31, 1, 2, 3, 4, 5 })
@@ -106,9 +106,11 @@ internal static class WarpChecks
         Examine();
         Check(conversation.AwaitingChoice && conversation.Text == chosen.ConfirmationMessage
             && !world.WarpInProgress && departures == 0, "E displays message and choices without starting travel");
+        Check(!world.ConsumeWarpStart(), "opening the confirmation emits no warp sound");
         conversation.Update(Conversation.ChoiceInputDelay);
         ConversationInput.Handle(conversation, key => key is Raylib_cs.KeyboardKey.Right or Raylib_cs.KeyboardKey.E);
         Check(!conversation.Active && !world.WarpInProgress && departures == 0, "No closes without travel");
+        Check(!world.ConsumeWarpStart(), "declining emits no warp sound");
         Examine();
         ConversationInput.Handle(conversation, key => key == Raylib_cs.KeyboardKey.Escape);
         conversation.Advance();
@@ -118,6 +120,7 @@ internal static class WarpChecks
         ConversationInput.Handle(conversation, key => key == Raylib_cs.KeyboardKey.E);
         conversation.Advance();
         Check(!conversation.Active && world.WarpInProgress && departures == 1, "Yes starts travel exactly once");
+        Check(world.ConsumeWarpStart() && !world.ConsumeWarpStart(), "confirmed warp emits its sound once");
         Check(world.OriginX == source.X && world.OriginZ == source.Z, "confirmation starts the transition without synchronous relocation");
         WaitForArrival(world, player, expectedX, expectedZ);
         Check(world.OriginX == expectedX && world.OriginZ == expectedZ && !player.Flying && notified == player.Position,
@@ -186,7 +189,9 @@ internal static class WarpChecks
                 generationThread = Environment.CurrentManagedThreadId;
                 gate.Wait(); return Sector.Generate(world.Seed, 30, 30);
             }), "background transition begins");
+            Check(world.ConsumeWarpStart(), "departure sound is ready before destination generation completes");
             Check(!world.BeginWarp(40, 40, Vector3.UnitX), "repeated activation cannot start another warp");
+            Check(!world.ConsumeWarpStart(), "repeated activation emits no extra warp sound");
             for (int frame = 0; frame < 200; frame++)
             { world.AdvanceWarp(.02, player); world.Update(player.Position); }
             Check(world.WarpInProgress && world.WarpStrength > .99f && world.OriginX == 0 && world.OriginZ == 0
@@ -225,6 +230,7 @@ internal static class WarpChecks
                 abandonedResult.SetResult(ready); return ready;
             });
             world.Teleport(player, new(30, 30, player.Position), radius: 0);
+            Check(!world.ConsumeWarpStart(), "cancellation clears an unplayed warp sound");
             Check(!world.WarpInProgress && world.OriginX == 30, "explicit teleport cancels an unfinished warp without waiting for it");
         }
         finally { cancellation.Set(); }
