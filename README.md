@@ -162,6 +162,8 @@ dotnet run --project src/CAERO -c Debug -- --seed=48291
 | Debug | `src/SaveData/generated-view.json` |
 | Release | 実行ファイルと同じフォルダーの `generated-view.json` |
 
+セーブデータとクリア実績（`achievements.json`）は、Debug では整形したプレーンな JSON、Release では `CAERO-SAVE:1` の識別ヘッダーと JSON を Base64 化した本文で保存します。既存環境との互換性のためファイル名は維持します。Release の形式は手軽な直接編集を抑えるための難読化であり、暗号化ではありません。どちらの構成でも両方の形式を読み込み可能で、新たに書き込む際はビルド構成に応じた形式を使用します。
+
 ### 配布パッケージの作成
 
 リポジトリのルートで、次を実行します。

@@ -23,8 +23,8 @@ internal static class SpecialChecks
     internal static void Run()
     {
         var data = SpecialContent.Data;
-        Check(data.Objects.Length == 51 && data.Objects.Select(d => d.Island).Distinct().Count() == 17, "all 51 authored additions on 17 islands");
-        Check(data.Objects.Count(d => d.Kind == SpecialKind.Resident) == 31
+        Check(data.Objects.Length == 52 && data.Objects.Select(d => d.Island).Distinct().Count() == 17, "all 52 authored additions on 17 islands");
+        Check(data.Objects.Count(d => d.Kind == SpecialKind.Resident) == 32
             && data.Objects.Count(d => d.Kind == SpecialKind.Inscription) == 14
             && data.Objects.Count(d => d.Kind == SpecialKind.Item) == 5
             && data.Objects.Count(d => d.Kind == SpecialKind.Exit) == 1, "complete authoring manifest");
@@ -200,13 +200,34 @@ internal static class SpecialChecks
 
     private static void LandingRoutes()
     {
-        var (x, z) = Address(90263);
-        using var world = new World(upload: false, originX: x, originZ: z);
-        var sector = world.Sectors.Single(s => s.X == x && s.Z == z);
-        var route = sector.Routes.Single(r => r.Name == "tower switchbacks").Points.Select(world.AddressOf).ToArray();
-        ProceduralChecks.Walk(world, "90263 tower ascent past the purple inscriptions", route);
-        ProceduralChecks.Walk(world, "90263 tower descent past the purple inscriptions", route.Reverse().ToArray());
-        Console.WriteLine("SPECIAL LANDINGS: island 90263 tower ascent/descent passed without jumping or flight.");
+        foreach (int number in new[] { 3, 90263 })
+        {
+            var (x, z) = Address(number);
+            using var world = new World(upload: false, originX: x, originZ: z);
+            var sector = world.Sectors.Single(s => s.X == x && s.Z == z);
+            var route = sector.Routes.Single(r => r.Name == "tower switchbacks").Points.Select(world.AddressOf).ToArray();
+            ProceduralChecks.Walk(world, $"{number} tower ascent past the special content", route);
+            ProceduralChecks.Walk(world, $"{number} tower descent past the special content", route.Reverse().ToArray());
+            if (number == 3)
+            {
+                var person = sector.People.Single(p => p.SpecialId == "island-3-03");
+                var foot = sector.ResidentLocal(person.Anchor);
+                Check(person.Huddled && person.Pose == ResidentPose.Sitting
+                    && Vector3.Distance(foot, new(18, 0, 26)) < .001f,
+                    "island 3 resident huddles beneath the first stair, away from the ground-floor aisle");
+                Vector3 forward = new(MathF.Sin(person.Yaw), 0, MathF.Cos(person.Yaw));
+                Vector3 eye = person.Anchor + forward * 2.19f + Vector3.UnitY * Explorer.EyeHeight;
+                Check(Conversation.Target(world, eye, Vector3.Normalize(person.LookPoint - eye)) == person,
+                    "island 3 resident can be spoken to from the clear central aisle");
+                foreach (var entrance in sector.Routes.Where(r => r.Name.StartsWith("tower entrance ")))
+                {
+                    var approach = entrance.Points.Select(world.AddressOf).ToArray();
+                    ProceduralChecks.Walk(world, $"3 {entrance.Name} entry", approach);
+                    ProceduralChecks.Walk(world, $"3 {entrance.Name} exit", approach.Reverse().ToArray());
+                }
+            }
+        }
+        Console.WriteLine("SPECIAL LANDINGS: islands 3/90263 tower ascent/descent and island 3 entrances passed without jumping or flight.");
     }
 
     private static void ExitAlcoveRoute()
@@ -274,7 +295,7 @@ internal static class SpecialChecks
                     conversation.Update(100);
                     if (next != null && page == expected.Length - 1)
                         Check(conversation.AwaitingChoice, "next choice follows the selected branch's final page");
-                    else Press(confirm);
+                    else { conversation.Update(Conversation.InputDelay); Press(confirm); }
                 }
                 current = next!;
             }
@@ -283,7 +304,7 @@ internal static class SpecialChecks
         conversation.Start(person);
         for (int page = 0; page < person.Speech.Pages.Length - 1; page++)
         { conversation.Update(100); conversation.Advance(); }
-        conversation.Update(100); Press(KeyboardKey.Right); Press(KeyboardKey.Escape);
+        conversation.Update(100); conversation.Update(Conversation.InputDelay); Press(KeyboardKey.Right); Press(KeyboardKey.Escape);
         Check(!conversation.AwaitingChoice && !person.Talking, "cancel clears the pending choice");
         conversation.Start(person);
         Check(conversation.SelectedYes && conversation.Page == 0, "reopening resets the selected answer and page");
@@ -296,7 +317,7 @@ internal static class SpecialChecks
             conversation.Update(100); conversation.Update(Conversation.ChoiceInputDelay); Press(KeyboardKey.Right); Press(KeyboardKey.Enter);
             for (int page = 0; page < choice.NoPages.Length - 1; page++)
             { conversation.Update(100); conversation.Advance(); }
-            conversation.Update(100); Press(KeyboardKey.Right); Press(KeyboardKey.Escape);
+            conversation.Update(100); conversation.Update(Conversation.InputDelay); Press(KeyboardKey.Right); Press(KeyboardKey.Escape);
             Check(!conversation.Active && !person.Talking, "Escape closes a nested question and releases the speaker");
             conversation.Start(person);
             Check(conversation.Page == 0 && conversation.SelectedYes, "reopening after nested cancellation restarts from the beginning");

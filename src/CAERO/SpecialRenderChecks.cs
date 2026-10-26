@@ -125,6 +125,8 @@ internal static class SpecialRenderChecks
             foreach (var person in sector.People.Where(p => p.SpecialId != null))
             {
                 Vector3 forward = new(MathF.Sin(person.Yaw), 0, MathF.Cos(person.Yaw));
+                if (person.SpecialId == "island-3-03")
+                    Capture(person.SpecialId + "-under-stair", sector.Transform(new(23, Explorer.EyeHeight, 23)), person.LookPoint);
                 if (number == 227)
                     Capture(person.SpecialId + "-surroundings", person.Position + forward * 7 + Vector3.UnitY * 2.5f, person.LookPoint);
                 if (person.SpecialId == "island-1169587-02")

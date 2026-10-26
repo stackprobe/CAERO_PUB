@@ -37,6 +37,7 @@ internal sealed partial class World : IDisposable
     public event Action<Vector3>? OriginShifted;
     public event Action<Vector3>? ViewTeleported;
     public int Seed { get; }
+    internal DayNightCycle Clock { get; } = new();
     public SeaPredator Predator { get; } = new();
     internal AdventureProgress Progress { get; } = new();
     public int LoadedCount => sectors.Count;

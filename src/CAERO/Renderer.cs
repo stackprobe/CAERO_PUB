@@ -15,7 +15,7 @@ internal sealed unsafe class Renderer : IDisposable
     public int DrawnChunks { get; private set; }
     public int DrawnTriangles { get; private set; }
     private RenderTexture2D scene, blurHorizontal, blurVertical, presentation;
-    private readonly DayNightCycle cycle = new();
+    private readonly DayNightCycle cycle;
     private readonly LanternSchedule lanterns;
     public bool IsNight => cycle.State.IsNight;
     public SkyState Sky => cycle.State;
@@ -35,6 +35,7 @@ internal sealed unsafe class Renderer : IDisposable
     private (long, long)? phaseOrigin;
     public Renderer(World world, int? lampSeed = null)
     {
+        cycle = world.Clock;
         lanterns = new(lampSeed ?? Random.Shared.Next());
         string ShaderPath(string name) => Path.Combine(AppContext.BaseDirectory, "Shaders", name);
         worldShader = Raylib.LoadShader(ShaderPath("world.vs"), ShaderPath("world.fs"));

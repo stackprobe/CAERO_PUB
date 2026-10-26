@@ -17,6 +17,17 @@ internal sealed class DayNightCycle
         Seconds += dt * TimeScale;
     }
     public void ToggleSpeed() => TimeScale = TimeScale == 1 ? 10 : 1;
+    public void Restore(double seconds)
+    {
+        if (!double.IsFinite(seconds) || seconds < 0) throw new ArgumentOutOfRangeException(nameof(seconds));
+        // The lighting blend reaches its endpoints at sun.Y = +/- .15.
+        // Include five seconds on either side of twilight and snap away from
+        // its midpoint. The midpoint itself resumes on the later side.
+        double margin = Math.Asin(.15 / .8) * Period / Math.Tau + 5;
+        double phase = seconds % HalfPeriod;
+        Seconds = seconds - phase + Math.Clamp(phase, margin, HalfPeriod - margin);
+        TimeScale = 1;
+    }
     public void StartAtNight() { Seconds = HalfPeriod * 1.5; TimeScale = 1; }
     public static SkyState At(double seconds)
     {

@@ -87,17 +87,15 @@ internal sealed class ConversationUi : IDisposable
         Raylib.DrawRectangle((int)padding, (int)top, (int)panelWidth, (int)panelHeight, new Color(10, 17, 21, 239));
         Raylib.DrawRectangle((int)padding, (int)top, 3, (int)panelHeight, new Color(164, 157, 133, 255));
         Text(session.Title, padding + 24, top + 18, sizeText * .85f, muted);
-        string text = session.Text[..session.Revealed];
-        float x = padding + 24, y = top + 58;
-        foreach (char c in text)
+        float Advance(char c) => (c == '\u3000' ? sizeText : Raylib.MeasureTextEx(font, c.ToString(), sizeText, 1).X) + 1;
+        var layout = TextLayout.Arrange(session.Text, panelWidth - 48, Advance);
+        foreach (var glyph in layout)
         {
-            if (c == '\n') { x = padding + 24; y += lineHeight; continue; }
-            string letter = c.ToString();
-            // Blank glyphs may have no measured width; an ideographic space still occupies one em.
-            float advance = (c == '\u3000' ? sizeText : Raylib.MeasureTextEx(font, letter, sizeText, 1).X) + 1;
-            if (x + advance > w - padding - 24) { x = padding + 24; y += lineHeight; }
-            if (c != '\u3000') Text(letter, x, y, sizeText, ink);
-            x += advance;
+            if (glyph.Index >= session.Revealed) break;
+            // Preserve the existing full-width space advance without drawing a missing glyph.
+            if (glyph.Character != '\u3000')
+                Text(glyph.Character.ToString(), padding + 24 + glyph.X,
+                    top + 58 + glyph.Row * lineHeight, sizeText, ink);
         }
         if (session.AwaitingChoice)
         {

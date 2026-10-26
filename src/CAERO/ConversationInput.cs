@@ -9,8 +9,12 @@ internal static class ConversationInput
 
     internal static void Handle(Conversation conversation, Func<KeyboardKey, bool> pressed)
     {
-        if (pressed(KeyboardKey.Escape)) { conversation.Close(); return; }
-        if (conversation.AwaitingChoice && !conversation.ChoiceInputReady) return;
+        if (pressed(KeyboardKey.Escape))
+        {
+            if (conversation.InputReady) conversation.Close();
+            return;
+        }
+        if (conversation.Revealed == conversation.Text.Length && !conversation.InputReady) return;
         if (pressed(KeyboardKey.Left) || pressed(KeyboardKey.Up) || pressed(KeyboardKey.A) || pressed(KeyboardKey.W))
             conversation.SelectAnswer(true);
         if (pressed(KeyboardKey.Right) || pressed(KeyboardKey.Down) || pressed(KeyboardKey.D) || pressed(KeyboardKey.S))

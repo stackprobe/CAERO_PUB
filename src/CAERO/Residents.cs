@@ -208,8 +208,9 @@ internal static class Residents
 
 internal sealed class Conversation
 {
-    internal const float ChoiceInputDelay = .2f;
-    private float choiceVisibleSeconds;
+    internal const float InputDelay = .2f;
+    internal const float ChoiceInputDelay = InputDelay;
+    private float inputVisibleSeconds;
     public Resident? Speaker { get; private set; }
     internal SpecialObject? Document { get; private set; }
     private Action? confirmed;
@@ -220,7 +221,8 @@ internal sealed class Conversation
     private DialogueChoice? choice;
     internal bool SelectedYes { get; private set; } = true;
     internal bool AwaitingChoice => Active && choice != null && Page == pages.Length - 1 && Revealed == Text.Length;
-    internal bool ChoiceInputReady => AwaitingChoice && choiceVisibleSeconds >= ChoiceInputDelay;
+    internal bool InputReady => Active && inputVisibleSeconds >= InputDelay;
+    internal bool ChoiceInputReady => AwaitingChoice && InputReady;
     internal int PageCount => pages.Length;
     public int Page { get; private set; }
     public float Elapsed { get; private set; }
@@ -236,15 +238,17 @@ internal sealed class Conversation
     }
     public void Update(float dt)
     {
-        bool wasVisible = AwaitingChoice;
+        bool wasRevealed = Revealed == Text.Length;
         Elapsed += Math.Max(0, dt);
-        choiceVisibleSeconds = wasVisible && AwaitingChoice ? choiceVisibleSeconds + Math.Max(0, dt) : 0;
+        // A newly completed page gets a fresh delay, including natural typewriter completion.
+        inputVisibleSeconds = !wasRevealed && Revealed == Text.Length
+            ? 0 : inputVisibleSeconds + Math.Max(0, dt);
     }
     internal void SelectAnswer(bool yes) { if (AwaitingChoice) SelectedYes = yes; }
     public void Advance()
     {
         if (!Active) return;
-        if (Revealed < Text.Length) { Elapsed = Text.Length / 28f + 1; choiceVisibleSeconds = 0; return; }
+        if (Revealed < Text.Length) { Elapsed = Text.Length / 28f + 1; inputVisibleSeconds = 0; return; }
         if (AwaitingChoice)
         {
             if (confirmed is { } action)
@@ -260,9 +264,9 @@ internal sealed class Conversation
             pages = [.. pages, .. branch];
         }
         if (++Page >= pages.Length) Close();
-        else { Elapsed = 0; choiceVisibleSeconds = 0; }
+        else { Elapsed = 0; inputVisibleSeconds = 0; }
     }
-    public void Close() { if (Speaker != null) Speaker.Talking = false; Speaker = null; Document = null; confirmed = null; confirmationTitle = null; pages = []; choice = null; SelectedYes = true; Page = 0; Elapsed = 0; choiceVisibleSeconds = 0; }
+    public void Close() { if (Speaker != null) Speaker.Talking = false; Speaker = null; Document = null; confirmed = null; confirmationTitle = null; pages = []; choice = null; SelectedYes = true; Page = 0; Elapsed = 0; inputVisibleSeconds = 0; }
     public static Resident? Target(World world, Vector3 eye, Vector3 forward)
     {
         return world.People.Where(p => Vector3.DistanceSquared(p.LookPoint, eye) < 3.4f * 3.4f)

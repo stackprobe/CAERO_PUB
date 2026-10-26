@@ -52,13 +52,21 @@ internal static class MenuChecks
             using var world = new World(upload: false);
             var player = new Explorer(); player.GoTo(world.Views[0]); var auto = new AutoSave(path);
             Check(auto.Flush(player, world), "new game immediately creates an autosave");
+            Check(SaveStore.Load(path)!.WorldSeconds == 0, "new game starts at dawn");
+            world.Clock.Advance(1054.125);
             var item = SpecialContent.Data.Objects.First(d => d.Effect == ItemEffect.Dash);
             world.Progress.Collect(item); Check(auto.Flush(player, world), "pickup flush persists inventory");
             var saved = SaveStore.Load(path)!;
+            Check(saved.WorldSeconds == world.Clock.Seconds, "autosave persists full world time across cycles");
             Check(saved.Progress!.Collected.SequenceEqual(new[] { item.Id }), "actual save file contains collected stable ID");
             using (var continued = new World(upload: false, seed: saved.Seed))
             {
                 continued.Progress.Restore(saved.Progress);
+                continued.Clock.ToggleSpeed(); continued.Clock.Restore(saved.WorldSeconds);
+                Check(continued.Clock.State == world.Clock.State && continued.Clock.TimeScale == 1,
+                    "Continue restores sun, moon and lighting at normal speed");
+                continued.Clock.Advance(.25);
+                Check(continued.Clock.Seconds == saved.WorldSeconds + .25, "restored clock continues advancing");
                 Check(continued.Progress.AbilityCount(ItemEffect.Dash) == 1 && !continued.Progress.Collect(item), "Continue restores ability and rejects re-collection");
                 var prop = continued.Sectors.SelectMany(s => s.SpecialObjects).Single(o => o.Definition.Id == item.Id);
                 Vector3 eye = prop.Foot + prop.LocalFacing * 2.19f + Vector3.UnitY * Explorer.EyeHeight;
@@ -69,11 +77,42 @@ internal static class MenuChecks
             auto.Update(1, player, world); saved = SaveStore.Load(path)!;
             Check(Math.Abs(saved.X - player.Position.X) < .001f, "ten-second autosave records current position");
             world.BeginWarp(30, 30, Vector3.UnitZ);
+            world.Clock.Advance(11);
             player.Position = new(55, 300, 55); auto.Update(11, player, world); auto.Flush(player, world);
             Check(SaveStore.Load(path)!.X == saved.X && SaveStore.Load(path)!.Y == saved.Y, "pause/quit during warp retains last safe position and inventory");
+            Check(SaveStore.Load(path)!.WorldSeconds == world.Clock.Seconds, "safe warp save still records current time");
             world.Teleport(player, new(0, 0, world.Views[0].Position), radius: 0);
             world.Progress.Restore(null); auto.Flush(player, world);
             Check(SaveStore.Load(path)!.Progress!.Collected.Length == 0, "new-game progress resets rather than inheriting collected items");
+            File.WriteAllText(path, "{\"X\":0,\"Y\":2,\"Z\":0,\"Yaw\":0,\"Pitch\":0,\"Flying\":false}");
+            Check(SaveStore.Load(path) is { WorldSeconds: 0 }, "legacy saves without time default to dawn");
+            double twilight = Math.Asin(.15 / .8) * DayNightCycle.Period / Math.Tau;
+            double margin = twilight + 5;
+            foreach (double midpoint in new[] { 0.0, 300, 600, 900, 1200, 60300 })
+            foreach (double offset in new[] { -150.0, -margin - .01, -margin, -margin + .01,
+                -twilight, -twilight + .01, -1, -.01, 0, .01, 1, twilight - .01, twilight,
+                margin - .01, margin, margin + .01, 150 })
+            {
+                double seconds = midpoint + offset;
+                if (seconds < 0) continue;
+                double expected = offset >= -margin && offset < 0 ? midpoint - margin
+                    : offset >= 0 && offset <= margin ? midpoint + margin : seconds;
+                Check(SaveStore.Save(saved with { WorldSeconds = seconds }, path), "save day, dusk, night and dawn");
+                Check(SaveStore.Load(path)!.WorldSeconds == seconds, "save retains original time until resume");
+                var restored = new DayNightCycle(); restored.Restore(SaveStore.Load(path)!.WorldSeconds);
+                Check(Math.Abs(restored.Seconds - expected) < .000001,
+                    "twilight plus five-second margins snaps before/after according to midpoint; other times stay unchanged");
+                if (expected != seconds)
+                    Check(restored.State.Night is 0 or 1
+                        && restored.State.IsNight == DayNightCycle.At(seconds).IsNight,
+                        "twilight resume preserves the midpoint side with fully settled lighting");
+                restored.Restore(restored.Seconds);
+                Check(Math.Abs(restored.Seconds - expected) < .000001, "repeated resumes do not accumulate a time shift");
+            }
+            Check(SaveStore.Save(saved with { GeneratorVersion = 1, WorldSeconds = 450.125 }, path)
+                && SaveStore.Load(path) is { WorldSeconds: 450.125 }, "world migration preserves saved time");
+            File.WriteAllText(path, "{\"X\":0,\"Y\":2,\"Z\":0,\"WorldSeconds\":-1}");
+            Check(SaveStore.Load(path) == null, "negative saved time is rejected");
             File.WriteAllText(path, "invalid-json"); Check(SaveStore.Load(path) == null, "invalid saves cannot enable Continue");
         }
         finally { File.Delete(path); if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp"); }
@@ -244,6 +283,10 @@ internal static class MenuChecks
                 continued.Player.SetCaptured(false);
                 Check(continued.World.Seed == 1701 && continued.World.Progress.Snapshot().Collected.Length == 5,
                     "Continue uses saved seed and all saved abilities");
+                var resumedClock = new DayNightCycle(); resumedClock.Restore(saved.WorldSeconds);
+                Check(continued.Renderer.Sky == resumedClock.State
+                    && SaveStore.Load(path)!.WorldSeconds == resumedClock.Seconds,
+                    "live Continue restores renderer time before its initial autosave");
                 Shot("continued-abilities", () => continued.Draw(text, true));
             }
             using (var fresh = new GameSession(1701, null, false, path))
@@ -251,6 +294,8 @@ internal static class MenuChecks
                 fresh.Player.SetCaptured(false);
                 Check(fresh.World.Progress.Snapshot().Collected.Length == 0 && SaveStore.Load(path)!.Progress!.Collected.Length == 0,
                     "New Game replaces autosave with clean inventory");
+                Check(fresh.Renderer.Sky.Seconds == 0 && SaveStore.Load(path)!.WorldSeconds == 0,
+                    "live New Game resets the saved clock to dawn");
             }
             Raylib.SetWindowSize(640, 360); flow.ToTitle(true);
             Shot("title-small", () => menus.Draw(flow, true));

@@ -7,6 +7,7 @@ internal static class DialogueChecks
 {
     public static void Run()
     {
+        TextLayoutChecks.Run();
         static void Check(bool condition, string message)
         { if (!condition) throw new InvalidOperationException("Dialogue check failed: " + message); }
         var lines = Dialogue.Lines;

@@ -8,7 +8,7 @@ internal static class ConversationInputChecks
     internal static void Run()
     {
         static void Check(bool value, string message)
-        { if (!value) throw new InvalidOperationException("Choice input check failed: " + message); }
+        { if (!value) throw new InvalidOperationException("Conversation input check failed: " + message); }
         var conversation = new Conversation();
         void Press(KeyboardKey key) => ConversationInput.Handle(conversation, candidate => candidate == key);
         int confirmed = 0;
@@ -54,16 +54,47 @@ internal static class ConversationInputChecks
         conversation.Update(Conversation.ChoiceInputDelay); Press(KeyboardKey.Right); Press(KeyboardKey.Space);
         Check(conversation.Text == "Second No", "nested No is accepted after its delay");
         conversation.Update(100); Press(KeyboardKey.Space);
-        Check(!conversation.Active, "ordinary answer pages can close without a choice delay");
+        Check(conversation.Active, "ordinary answer pages also wait after natural text completion");
+        conversation.Update(Conversation.InputDelay); Press(KeyboardKey.Space);
+        Check(!conversation.Active, "ordinary answer pages can close after the delay");
 
         conversation.Read(document); Press(KeyboardKey.Enter);
         Check(conversation.AwaitingChoice && !conversation.ChoiceInputReady, "instant text reveal starts a fresh delay too");
         Press(KeyboardKey.Escape);
-        Check(!conversation.Active, "Escape may still cancel without confirming any answer");
+        Check(conversation.Active, "Escape also waits after text reveal");
+        conversation.Update(Conversation.InputDelay); Press(KeyboardKey.Escape);
+        Check(!conversation.Active, "Escape cancels after the delay without confirming any answer");
         conversation.Read(document); Press(KeyboardKey.Enter); Press(KeyboardKey.Enter);
         Check(conversation.Text == "First question" && !conversation.ChoiceInputReady,
             "reopening a conversation never inherits an expired delay");
         conversation.Close();
-        Console.WriteLine("CHOICE INPUT: 0.2-second lock, rapid presses, all confirm keys, natural/instant reveal, nested questions, cancel and reopen passed.");
+
+        foreach (var key in new[] { KeyboardKey.E, KeyboardKey.Space, KeyboardKey.Enter, KeyboardKey.Escape })
+        foreach (bool instant in new[] { false, true })
+        {
+            using var pages = new SpecialObject
+            {
+                Definition = definition with { Pages = ["First page", "Last page"], Choice = null },
+                LocalFoot = Vector3.Zero, LocalFacing = Vector3.UnitZ, Geometry = new()
+            };
+            conversation.Read(pages);
+            Press(KeyboardKey.Escape);
+            Check(conversation.Active, "opening starts a fresh close delay");
+            for (int page = 0; page < 2; page++)
+            {
+                if (instant) Press(KeyboardKey.Enter);
+                else conversation.Update(100);
+                for (int i = 0; i < 25; i++) Press(key);
+                Check(conversation.Active && conversation.Page == page, "rapid presses cannot skip or close a newly revealed page");
+                conversation.Update(Conversation.InputDelay - .001f); Press(key);
+                Check(conversation.Active && conversation.Page == page, "page input stays blocked before the deadline");
+                conversation.Update(.002f); Press(key);
+                if (key == KeyboardKey.Escape) break;
+                Check(page == 0 ? conversation.Active && conversation.Page == 1 : !conversation.Active,
+                    "page advance and final close work after the delay");
+            }
+            Check(!conversation.Active, "close is accepted after the delay");
+        }
+        Console.WriteLine("CONVERSATION INPUT: 0.2-second lock, rapid presses, all confirm keys, page advance, final close, natural/instant reveal, nested questions, Escape and reopen passed.");
     }
 }

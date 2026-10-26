@@ -16,9 +16,9 @@ internal static class AchievementStore
         try
         {
             string path = PathFor(savePath);
-            return File.Exists(path) && JsonSerializer.Deserialize<Achievements>(File.ReadAllText(path))?.Cleared == true;
+            return File.Exists(path) && SaveDataFormat.Deserialize<Achievements>(File.ReadAllText(path))?.Cleared == true;
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or FormatException)
         { LastError = error.Message; return false; }
     }
     internal static bool UnlockClear(string? savePath = null)
@@ -28,8 +28,7 @@ internal static class AchievementStore
         {
             string path = PathFor(savePath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(new Achievements(true),
-                new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(path + ".tmp", SaveDataFormat.Serialize(new Achievements(true)));
             File.Move(path + ".tmp", path, true);
             LastError = null; return true;
         }

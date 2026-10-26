@@ -17,7 +17,7 @@ internal sealed class AutoSave(string? filePath = null)
         if (!world.WarpInProgress) stable = SaveStore.Capture(player, world);
         elapsed = 0;
         if (stable == null) return false;
-        bool success = SaveStore.Save(stable with { Progress = world.Progress.Snapshot() }, filePath);
+        bool success = SaveStore.Save(stable with { Progress = world.Progress.Snapshot(), WorldSeconds = world.Clock.Seconds }, filePath);
         if (!success) Console.Error.WriteLine("AUTOSAVE: " + SaveStore.LastError);
         return success;
     }

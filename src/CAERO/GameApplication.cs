@@ -27,6 +27,7 @@ internal sealed class GameSession : IDisposable
         Player.GoTo(new("ENTRY", World.EntryPosition, World.EntryPosition + World.Views[0].Target - World.Views[0].Position));
         if (saved != null)
         {
+            World.Clock.Restore(saved.WorldSeconds);
             World.Progress.Restore(saved.Progress); Player.Restore(saved);
             if (!World.Progress.CanFly) Player.Flying = false;
             if (World.Blocked(Player.Position)) World.ReturnToStart(Player);

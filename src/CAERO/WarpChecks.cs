@@ -112,6 +112,7 @@ internal static class WarpChecks
         Check(!conversation.Active && !world.WarpInProgress && departures == 0, "No closes without travel");
         Check(!world.ConsumeWarpStart(), "declining emits no warp sound");
         Examine();
+        conversation.Update(Conversation.InputDelay);
         ConversationInput.Handle(conversation, key => key == Raylib_cs.KeyboardKey.Escape);
         conversation.Advance();
         Check(!conversation.Active && !world.WarpInProgress && departures == 0, "Escape discards pending travel");
